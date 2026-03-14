@@ -235,16 +235,20 @@ init_netbox() {
 
     SPIN='-\|/'
     i=0
-    # Add a custom spinner for migrations that preserves the progress bar
-    printf "\n  ${C_CYAN}Running Netbox Migrations (~2-4 min) ${C_DEFAULT}"
+    
+    # Print the sub-status on a new line, then restore cursor to main progress bar
+    printf "\n  ${C_CYAN}Running Netbox Migrations (~2-4 min) ${C_DEFAULT} "
     while kill -0 $MIGRATE_PID 2>/dev/null; do
         i=$(( (i+1) %4 ))
         printf "\b${SPIN:$i:1}"
         sleep 0.1
     done
     printf "\b${C_GREEN}Done!${C_DEFAULT}\n"
+    
+    # Erase the first sub-status line (cursor is now below it due to the \n above)
+    tput cuu1 && tput el
 
-    printf "  ${C_CYAN}Waiting for Netbox Web UI (~4-8 min) ${C_DEFAULT}"
+    printf "\n  ${C_CYAN}Waiting for Netbox Web UI (~4-8 min) ${C_DEFAULT} "
     TIMEOUT=0
     while true; do
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 "http://localhost:8020/login/" || echo "000")
@@ -264,8 +268,13 @@ init_netbox() {
     done
     printf "\b${C_GREEN}Online!${C_DEFAULT}\n"
 
-    # Go back up two lines to redraw over the sub-progress blocks to keep it clean, or leave them.
-    # We will leave them so the user knows what took so long.
+    # Erase the second sub-status line
+    tput cuu1 && tput el
+    # Erase the original blank line we started with
+    tput cuu1 && tput el
+    
+    # Redraw the main progress bar so it doesn't get lost
+    draw_progress "Configuring Netbox..."
     
     CONTAINERS=$(docker ps --format '{{.Names}}')
 
