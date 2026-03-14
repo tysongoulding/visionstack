@@ -123,3 +123,41 @@ echo "------------------------------------------------"
 echo "INTEGRATION COMPLETE"
 echo "Netbox API Token: $NETBOX_TOKEN"
 echo "------------------------------------------------"
+
+# --- Netbox Bootstrap & Service Registration ---
+echo "Bootstrapping Netbox Inventory via API..."
+
+# 1. Create the visionStack Site
+curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "visionStack", "slug": "visionstack"}' \
+  http://localhost:8020/api/dcim/sites/ > /dev/null
+
+# 2. Create Manufacturer (visionStack)
+curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "visionStack", "slug": "visionstack"}' \
+  http://localhost:8020/api/dcim/manufacturers/ > /dev/null
+
+# 3. Create Device Role (Infrastructure)
+curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
+  -d '{"name": "Infrastructure", "slug": "infrastructure", "color": "4caf50"}' \
+  http://localhost:8020/api/dcim/device-roles/ > /dev/null
+
+# 4. Create Device Type (Docker Container)
+curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
+  -d '{"manufacturer": {"slug": "visionstack"}, "model": "Docker Container", "slug": "docker-container"}' \
+  http://localhost:8020/api/dcim/device-types/ > /dev/null
+
+# 5. Register Services
+SERVICES=("Portainer" "Netbox" "Zabbix" "Graylog" "Grafana" "Prometheus" "ntopng" "Oxidized")
+for SERVICE in "${SERVICES[@]}"; do
+  echo "Registering $SERVICE in Netbox..."
+  curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
+    -d "{
+      \"name\": \"$SERVICE\",
+      \"device_type\": {\"slug\": \"docker-container\"},
+      \"site\": {\"slug\": \"visionstack\"},
+      \"status\": \"active\",
+      \"role\": {\"slug\": \"infrastructure\"}
+    }" \
+    http://localhost:8020/api/dcim/devices/ > /dev/null
+done
