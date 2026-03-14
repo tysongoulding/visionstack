@@ -2,46 +2,46 @@ services:
   # --- Management ---
   portainer:
     image: portainer/portainer-ce:latest
-    container_name: vision-portainer
+    container_name: visionstack-portainer
     restart: always
-    ports: ["8010:9000"]
-    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data"]
+    ports: [ "8010:9000" ]
+    volumes: [ "/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data" ]
 
   netbox:
     image: netboxcommunity/netbox:latest
-    container_name: vision-netbox
+    container_name: visionstack-netbox
     restart: always
-    ports: ["8020:8080"]
+    ports: [ "8020:8080" ]
     environment:
       - SECRET_KEY=vIsIoNsTaCkSeCrEt
-    depends_on: [postgres, redis]
+    depends_on: [ postgres, redis ]
 
   # --- Zabbix Tier ---
   zabbix-server:
     image: zabbix/zabbix-server-pgsql:ubuntu-7.0-latest
-    container_name: vision-zabbix-server
+    container_name: visionstack-zabbix-server
     restart: always
     environment:
       - DB_SERVER_HOST=postgres
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=${MASTER_PWD}
-    depends_on: [postgres]
+    depends_on: [ postgres ]
 
   zabbix-web:
     image: zabbix/zabbix-web-nginx-pgsql:ubuntu-7.0-latest
-    container_name: vision-zabbix-web
+    container_name: visionstack-zabbix-web
     restart: always
-    ports: ["8030:8080"]
+    ports: [ "8030:8080" ]
     environment:
       - ZBX_SERVER_HOST=zabbix-server
       - DB_SERVER_HOST=postgres
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=${MASTER_PWD}
-    depends_on: [zabbix-server]
+    depends_on: [ zabbix-server ]
 
   zabbix-agent:
     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
-    container_name: vision-zabbix-agent
+    container_name: visionstack-zabbix-agent
     restart: always
     network_mode: host
     pid: host
@@ -58,7 +58,7 @@ services:
   # --- Observability Tier ---
   graylog:
     image: graylog/graylog:6.0
-    container_name: vision-graylog
+    container_name: visionstack-graylog
     restart: always
     ports:
       - "8040:9000"
@@ -69,33 +69,33 @@ services:
       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
       - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
-    depends_on: [mongodb, opensearch]
+    depends_on: [ mongodb, opensearch ]
 
   grafana:
     image: grafana/grafana:latest
-    container_name: vision-grafana
+    container_name: visionstack-grafana
     restart: always
-    ports: ["8050:3000"]
+    ports: [ "8050:3000" ]
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: vision-prometheus
+    container_name: visionstack-prometheus
     restart: always
-    ports: ["8060:9090"]
+    ports: [ "8060:9090" ]
 
   ntopng:
     image: ntop/ntopng:latest
-    container_name: vision-ntopng
+    container_name: visionstack-ntopng
     restart: always
-    ports: ["8070:3000"]
-    command: ["--local-networks", "192.168.0.0/16", "--interface", "tcp://nprobe:5556"]
+    ports: [ "8070:3000" ]
+    command: [ "--local-networks", "192.168.0.0/16", "--interface", "tcp://nprobe:5556" ]
 
   oxidized:
     image: oxidized/oxidized:latest
-    container_name: vision-oxidized
+    container_name: visionstack-oxidized
     restart: always
-    ports: ["8080:8888"]
-    volumes: ["./data/oxidized:/root/.config/oxidized"]
+    ports: [ "8080:8888" ]
+    volumes: [ "./data/oxidized:/root/.config/oxidized" ]
 
   # --- Infrastructure Backend ---
   postgres:
@@ -110,7 +110,7 @@ services:
 
   opensearch:
     image: opensearchproject/opensearch:2.15.0
-    container_name: vision-opensearch
+    container_name: visionstack-opensearch
     restart: always
     environment:
       - discovery.type=single-node

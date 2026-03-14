@@ -117,7 +117,7 @@ fi
 # 7. Post-Deployment Integration
 echo -n "Waking up APIs (Waiting for migrations)..."
 TIMEOUT=0
-while ! curl -s --head --request GET http://localhost:8010 | grep "200 OK" > /dev/null; do
+while ! curl -s --request GET http://localhost:8010 > /dev/null; do
     echo -n "."
     sleep 3
     ((TIMEOUT++))
@@ -128,7 +128,7 @@ echo " Online!"
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
 echo "Generating Netbox API Token..."
-docker exec vision-netbox python3 manage.py create_token --user admin --token $NETBOX_TOKEN > /dev/null
+docker exec visionstack-netbox python3 manage.py create_token --user admin --token $NETBOX_TOKEN > /dev/null
 
 # --- Oxidized Integration ---
 echo "Configuring Oxidized..."
@@ -144,7 +144,7 @@ type: git
 source:
   default: http
   http:
-    url: http://vision-netbox:8080/api/dcim/devices/
+    url: http://visionstack-netbox:8080/api/dcim/devices/
     map:
       name: name
       model: device_type.model.slug
@@ -155,7 +155,7 @@ EOF
 # --- Grafana Integration ---
 echo "Connecting Grafana to Prometheus..."
 curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"name":"Prometheus","type":"prometheus","url":"http://vision-prometheus:9090","access":"proxy"}' \
+  -d '{"name":"Prometheus","type":"prometheus","url":"http://visionstack-prometheus:9090","access":"proxy"}' \
   http://admin:admin@localhost:8050/api/datasources > /dev/null
 
 # --- Final Credential Print ---
@@ -233,7 +233,7 @@ curl -s -X POST -H "Content-Type: application/json-rpc" \
         \"hostid\": \"$ZABBIX_HOST_ID\",
         \"templates\": [{\"templateid\": \"$TEMPLATE_ID\"}],
         \"macros\": [
-            {\"macro\": \"{\$NETBOX.URL}\", \"value\": \"http://vision-netbox:8080/api\"},
+            {\"macro\": \"{\$NETBOX.URL}\", \"value\": \"http://visionstack-netbox:8080/api\"},
             {\"macro\": \"{\$NETBOX.TOKEN}\", \"value\": \"$NETBOX_TOKEN\"},
             {\"macro\": \"{\$NETBOX.FILTER}\", \"value\": \"site=visionstack\"}
         ]
