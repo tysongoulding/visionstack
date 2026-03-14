@@ -65,6 +65,8 @@ services:
     ports:
       - "8040:9000"
       - "12201:12201/udp"
+      - "514:1514/udp"
+      - "514:1514/tcp"
     environment:
       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
