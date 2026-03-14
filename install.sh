@@ -104,7 +104,7 @@ echo "Credentials saved to ./visionstack_credentials.txt (Keep this safe!)"
 cat <<EOF > ./data/postgres/init-postgres.sh
 #!/bin/bash
 set -e
-psql -v ON_ERROR_STOP=1 --username "\\\$POSTGRES_USER" --dbname "\\\$POSTGRES_DB" <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "postgres" --dbname "postgres" <<-EOSQL
     CREATE USER netbox WITH PASSWORD '$MASTER_PWD';
     CREATE DATABASE netbox OWNER netbox;
     CREATE USER zabbix WITH PASSWORD '$MASTER_PWD';

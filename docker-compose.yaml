@@ -107,6 +107,7 @@ services:
     container_name: visionstack-postgres
     restart: always
     environment:
+      - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${MASTER_PWD}
     volumes:
       - ./data/postgres/data:/var/lib/postgresql/data
