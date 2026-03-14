@@ -116,10 +116,6 @@ if [ -f "./visionstack_credentials.txt" ]; then
     export GRAYLOG_PASSWORD_SECRET=$(grep -m 1 "Graylog Secret:" ./visionstack_credentials.txt | awk '{print $3}')
     export NETBOX_SECRET_KEY=$(grep -m 1 "Netbox Secret Key:" ./visionstack_credentials.txt | awk '{print $4}')
     export NETBOX_TOKEN=$(grep -m 1 "Netbox API Token:" ./visionstack_credentials.txt | awk '{print $4}')
-    export API_TOKEN_PEPPERS=$(grep -m 1 "Netbox Token Pepper:" ./visionstack_credentials.txt | awk '{print $4}')
-    if [[ ! "$API_TOKEN_PEPPERS" == \[* ]]; then
-        export API_TOKEN_PEPPERS="['$API_TOKEN_PEPPERS']"
-    fi
     export VISION_READ_PWD=$(grep -m 1 "vision-read Pass:" ./visionstack_credentials.txt | awk '{print $3}')
     export VISION_WRITE_PWD=$(grep -m 1 "vision-write Pass:" ./visionstack_credentials.txt | awk '{print $3}')
     export VISION_READ_TOKEN=$(grep -m 1 "vision-read App Token:" ./visionstack_credentials.txt | awk '{print $4}')
@@ -140,7 +136,6 @@ else
     export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
     export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
     export NETBOX_TOKEN=$(openssl rand -hex 20)
-    export API_TOKEN_PEPPERS="['$(openssl rand -base64 32)']"
 
     cat <<EOF > ./visionstack_credentials.txt
 ========================================
@@ -222,7 +217,6 @@ UNIVERSAL SERVICE ACCOUNTS:
 SYSTEM SECRETS (Do not lose these!):
 ----------------------------------------
 Netbox API Token: $NETBOX_TOKEN
-Netbox Token Pepper: $API_TOKEN_PEPPERS
 Netbox Secret Key: $NETBOX_SECRET_KEY
 Graylog Secret: $GRAYLOG_PASSWORD_SECRET
 EOF
@@ -241,7 +235,6 @@ HOST_IP=$HOST_IP
 GRAYLOG_ROOT_PASSWORD_SHA2=$GRAYLOG_ROOT_PASSWORD_SHA2
 GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
 NETBOX_SECRET_KEY=$NETBOX_SECRET_KEY
-API_TOKEN_PEPPERS=$API_TOKEN_PEPPERS
 EOF
 chmod 600 .env
 
@@ -250,7 +243,6 @@ export HOST_IP=$HOST_IP
 export GRAYLOG_ROOT_PASSWORD_SHA2=$GRAYLOG_ROOT_PASSWORD_SHA2
 export GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
 export NETBOX_SECRET_KEY=$NETBOX_SECRET_KEY
-export API_TOKEN_PEPPERS=$API_TOKEN_PEPPERS
 
 if docker compose version &> /dev/null; then
     docker compose up -d --pull always --force-recreate
