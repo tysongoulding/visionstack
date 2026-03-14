@@ -213,7 +213,7 @@ while kill -0 $MIGRATE_PID 2>/dev/null; do
 done
 printf "\bDone!\n"
 
-echo -n "Waiting for Netbox Web UI to come online "
+echo -n "Waiting for Netbox Web UI to come online (This can take ~5min) "
 TIMEOUT=0
 while true; do
     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8020 || echo "000")
