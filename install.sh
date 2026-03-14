@@ -60,8 +60,33 @@ mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized}
 chmod -R 775 ./data
 
 # 4. Setup Wizard
-read -p "Enter your Host IP Address: " HOST_IP
-read -p "Enter a Master Password for DBs: " MASTER_PWD
+# Auto-detect IP if not provided
+if [ -z "$HOST_IP" ]; then
+    # Try hostname -I first, if not available use ip route
+    if command -v hostname >/dev/null 2>&1; then
+        HOST_IP=$(hostname -I | awk '{print $1}')
+    else
+        HOST_IP=$(ip route get 1 | awk '{print $NF;exit}')
+    fi
+    echo "Auto-detected Host IP: $HOST_IP"
+fi
+
+# Auto-generate password if not provided
+if [ -z "$MASTER_PWD" ]; then
+    MASTER_PWD=$(openssl rand -hex 12)
+    echo "Auto-generated Master Password."
+fi
+
+# Save credentials for the admin to reference later
+cat <<EOF > ./visionstack_credentials.txt
+visionStack Auto-Generated Credentials
+--------------------------------------
+Host IP (Detected): $HOST_IP
+Master Password: $MASTER_PWD
+Deployment Date: $(date)
+EOF
+chmod 600 ./visionstack_credentials.txt
+echo "Credentials saved to ./visionstack_credentials.txt (Keep this safe!)"
 
 # 5. Generate Graylog Secrets
 export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
@@ -74,7 +99,14 @@ export HOST_IP=$HOST_IP
 export GRAYLOG_ROOT_PASSWORD_SHA2=$GRAYLOG_ROOT_PASSWORD_SHA2
 export GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
 
-docker compose up -d || docker-compose up -d
+if docker compose version &> /dev/null; then
+    docker compose up -d
+elif docker-compose version &> /dev/null; then
+    docker-compose up -d
+else
+    echo "Command 'docker compose' or 'docker-compose' not found!"
+    exit 1
+fi
 
 # 7. Post-Deployment Integration
 echo -n "Waking up APIs (Waiting for migrations)..."
