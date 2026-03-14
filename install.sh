@@ -143,6 +143,20 @@ echo " Online!"
 
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
+
+echo -n "Waiting for Netbox Web UI (and Database) to come online..."
+TIMEOUT=0
+while ! curl -s --request GET http://localhost:8020 > /dev/null; do
+    echo -n "."
+    sleep 5
+    ((TIMEOUT++))
+    if [ $TIMEOUT -gt 60 ]; then
+        echo " Timeout!"
+        break
+    fi
+done
+echo " Online!"
+
 echo "Generating Netbox API Token and configuring Admin User..."
 docker exec -i visionstack-netbox python3 manage.py shell <<EOF
 from django.contrib.auth import get_user_model
