@@ -68,12 +68,35 @@ if [ -n "$ZBX_TOKEN" ]; then
     # 1. Update default agent DNS interface
     curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
       --header 'Content-Type: application/json' \
-      --data "{\"jsonrpc\": \"2.0\", \"method\": \"hostinterface.update\", \"params\": {\"interfaceid\": \"$ZBX_INTERFACE_ID\", \"dns\": \"visionstack-zabbix-agent\", \"useip\": 0}, \"auth\": \"$ZBX_TOKEN\", \"id\": 2}" > /dev/null
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"hostinterface.update\", \"params\": {\"interfaceid\": \"$ZBX_INTERFACE_ID\", \"dns\": \"visionstack-zabbix-agent\", \"useip\": 0, \"port\": \"10050\"}, \"auth\": \"$ZBX_TOKEN\", \"id\": 2}" > /dev/null
       
     # 2. Attach 'Docker by Zabbix agent 2' template
-    curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
-      --header 'Content-Type: application/json' \
-      --data "{\"jsonrpc\": \"2.0\", \"method\": \"template.massadd\", \"params\": {\"templates\": [{\"templateid\": \"$ZBX_DOCKER_TPL_ID\"}], \"hosts\": [{\"hostid\": \"$ZBX_SERVER_ID\"}]}, \"auth\": \"$ZBX_TOKEN\", \"id\": 3}" > /dev/null
+    # Get CURRENT linked templates
+    ZBX_HOST_DATA=$(curl -s -X POST -H 'Content-Type: application/json' -d "{
+        \"jsonrpc\": \"2.0\",
+        \"method\": \"host.get\",
+        \"params\": {
+            \"filter\": {\"host\": [\"Zabbix server\"]},
+            \"selectParentTemplates\": [\"templateid\"]
+        },
+        \"auth\": \"$ZBX_TOKEN\",
+        \"id\": 3
+    }" http://localhost:8030/api_jsonrpc.php)
+    
+    # Build the new template list (Existing + New Docker Template)
+    ZBX_NEW_TEMPLATE_LIST=$(echo $ZBX_HOST_DATA | jq -c ".result[0].parentTemplates + [{\"templateid\": \"$ZBX_DOCKER_TPL_ID\"}]")
+    
+    # Push the update
+    curl -s -X POST -H 'Content-Type: application/json' -d "{
+        \"jsonrpc\": \"2.0\",
+        \"method\": \"host.update\",
+        \"params\": {
+            \"hostid\": \"$ZBX_SERVER_ID\",
+            \"templates\": $ZBX_NEW_TEMPLATE_LIST
+        },
+        \"auth\": \"$ZBX_TOKEN\",
+        \"id\": 4
+    }" http://localhost:8030/api_jsonrpc.php > /dev/null
 
     # 3. Create HTTP Tracking for Container GUIs
     curl -s -X POST -H 'Content-Type: application/json' \
