@@ -25,6 +25,13 @@ cd visionstack
 sudo chmod +x install.sh
 sudo ./install.sh
 ```
+
+### Option 3: Total Teardown (Uninstall)
+If you need to completely wipe the deployment and start fresh, run the following command to destroy all containers, prune the volumes and networks, and delete the repository folder:
+
+```bash
+sudo docker rm -f $(sudo docker ps -aq) && sudo docker volume prune -f && sudo docker network prune -f && cd ~ && sudo rm -rf visionstack data docker-compose.yaml visionstack_credentials.txt configure.sh
+```
 ### 🗺️ Port Map & Ecosystem
 
 | Service | Port | Description | Environment |
