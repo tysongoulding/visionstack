@@ -51,6 +51,7 @@ services:
     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
     container_name: visionstack-zabbix-agent
     restart: always
+    user: root
     pid: host
     privileged: true
     volumes:
