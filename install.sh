@@ -132,6 +132,30 @@ APPLICATION LOGIN CREDENTIALS:
 * Oxidized (http://$HOST_IP:8080)
   (No authentication by default)
 
+INTERNAL DATABASE CREDENTIALS:
+----------------------------------------
+* Postgres (Zabbix)
+  Host: visionstack-postgres-zabbix:5432
+  User: zabbix
+  Pass: $MASTER_PWD
+
+* Postgres (Netbox)
+  Host: visionstack-postgres-netbox:5432
+  User: netbox
+  Pass: $MASTER_PWD
+
+* MongoDB
+  Host: visionstack-mongodb:27017
+  (No authentication by default)
+
+* OpenSearch
+  Host: visionstack-opensearch:9200
+  (Security plugin disabled by default)
+
+* Redis
+  Host: visionstack-redis:6379
+  (No authentication by default)
+
 SYSTEM SECRETS (Do not lose these!):
 ----------------------------------------
 Netbox Secret Key: $NETBOX_SECRET_KEY
