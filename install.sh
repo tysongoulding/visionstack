@@ -65,6 +65,12 @@ if [ ! -f "docker-compose.yaml" ]; then
     curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/docker-compose.yaml?t=$(date +%s)" -o docker-compose.yaml
 fi
 
+if [ ! -f "configure.sh" ]; then
+    echo "Downloading configure.sh..."
+    curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/configure.sh?t=$(date +%s)" -o configure.sh
+    chmod +x configure.sh
+fi
+
 # 4. Setup Wizard
 # Auto-detect IP if not provided
 if [ -z "$HOST_IP" ]; then
@@ -207,9 +213,6 @@ echo "Grafana:         http://$HOST_IP:8050 | admin / admin"
 echo "ntopng:          http://$HOST_IP:8070 | admin / admin"
 echo "------------------------------------------------"
 echo "STAGE 1 COMPLETE: Raw containers deployed."
-echo "Please verify all containers are stable in Portainer or via 'docker ps'."
 echo "------------------------------------------------"
-echo "STAGE 2 REQUIRED:"
-echo "To automatically configure all Applications, APIs, and Webhooks, run:"
-echo "  sudo bash ./configure.sh"
-echo "------------------------------------------------"
+echo "STAGE 2 COMMENCING: Auto-Configuring APIs and Webhooks..."
+bash ./configure.sh
