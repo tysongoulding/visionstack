@@ -59,7 +59,7 @@ services:
       - /:/host/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - ZBX_HOSTNAME="Zabbix server"
+      - ZBX_HOSTNAME=Zabbix server
       - ZBX_SERVER_HOST=visionstack-zabbix-server
       - ZBX_SERVER_ACTIVE=visionstack-zabbix-server
       - ZBX_ALLOWROOT=1
