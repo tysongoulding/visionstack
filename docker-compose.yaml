@@ -50,7 +50,6 @@ services:
     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
     container_name: visionstack-zabbix-agent
     restart: always
-    network_mode: host
     pid: host
     privileged: true
     volumes:
@@ -60,11 +59,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - ZBX_HOSTNAME=visionStack-Host
-      - ZBX_SERVER_HOST=127.0.0.1
+      - ZBX_SERVER_HOST=visionstack-zabbix-server
 
   # --- Observability Tier ---
   graylog:
-    image: graylog/graylog:6.0
+    image: graylog/graylog:5.2
     container_name: visionstack-graylog
     restart: always
     ports:
