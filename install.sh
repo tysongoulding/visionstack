@@ -131,30 +131,43 @@ echo " Online!"
 echo "Configuring Portainer Admin User..."
 curl -s --request POST 'http://localhost:8010/api/users/admin/init' \
   --header 'Content-Type: application/json' \
-  --data "{}'\"Username\":\"admin\",\"Password\":\"$MASTER_PWD\"}'" > /dev/null
+  --data "{\"Username\":\"admin\",\"Password\":\"$MASTER_PWD\"}" > /dev/null
 
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
+# Start background migration
+docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input > /dev/null 2>&1 &
+MIGRATE_PID=$!
 
-echo "Running Netbox Database Migrations..."
-docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input
+# Spinner animation while migration runs
+SPIN='-\|/'
+i=0
+while kill -0 $MIGRATE_PID 2>/dev/null; do
+    i=$(( (i+1) %4 ))
+    printf "\b${SPIN:$i:1}"
+    sleep 0.1
+done
+printf "\bDone!\n"
 
-echo -n "Waiting for Netbox Web UI (and Database) to come online..."
+echo -n "Waiting for Netbox Web UI to come online "
 TIMEOUT=0
 while true; do
     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8020 || echo "000")
     if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "301" ]; then
         break
     fi
-    echo -n "."
-    sleep 5
+    for _ in {1..50}; do
+        i=$(( (i+1) %4 ))
+        printf "\b${SPIN:$i:1}"
+        sleep 0.1
+    done
     TIMEOUT=$((TIMEOUT + 1))
     if [ $TIMEOUT -gt 120 ]; then
-        echo " Timeout!"
+        echo -e "\bTimeout!"
         break
     fi
 done
-echo " Online!"
+echo -e "\bOnline!"
 
 echo "Generating Netbox API Token and configuring Admin User..."
 docker exec -i visionstack-netbox python3 manage.py shell <<EOF
