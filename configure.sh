@@ -1,8 +1,6 @@
 #!/bin/bash
 # visionstack Configuration Engine
-set -e
-
-# ==========================================
+# set -e (Removed to allow script to continue on individual curl/api errors)# ==========================================
 # UI & LOGGING FRAMEWORK
 # ==========================================
 C_DEFAULT='\033[0m'
