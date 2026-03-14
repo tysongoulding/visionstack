@@ -83,6 +83,11 @@ if [ -z "$MASTER_PWD" ]; then
     echo "Auto-generated Master Password."
 fi
 
+# 5. Generate Application Secrets early
+export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
+export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
+export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
+
 # Save credentials for the admin to reference later
 cat <<EOF > ./visionstack_credentials.txt
 visionStack Auto-Generated Credentials
@@ -94,11 +99,6 @@ Deployment Date: $(date)
 EOF
 chmod 600 ./visionstack_credentials.txt
 echo "Credentials saved to ./visionstack_credentials.txt (Keep this safe!)"
-
-# 5. Generate Application Secrets
-export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
-export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
-export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
 
 # 6. Launch the Stack
 echo "Deploying containers..."
@@ -130,8 +130,19 @@ echo " Online!"
 
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
-echo "Generating Netbox API Token..."
-docker exec visionstack-netbox python3 manage.py create_token --user admin --token $NETBOX_TOKEN > /dev/null
+echo "Generating Netbox API Token and configuring Admin User..."
+docker exec -i visionstack-netbox python3 manage.py shell <<EOF
+from django.contrib.auth import get_user_model
+from users.models import Token
+User = get_user_model()
+user, created = User.objects.get_or_create(username='admin')
+user.is_superuser = True
+user.is_staff = True
+user.set_password('$MASTER_PWD')
+user.save()
+Token.objects.filter(user=user).delete()
+Token.objects.create(user=user, key='$NETBOX_TOKEN')
+EOF
 
 # --- Oxidized Integration ---
 echo "Configuring Oxidized..."
