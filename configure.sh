@@ -3,17 +3,46 @@
 set -e
 
 # ==========================================
+# UI & LOGGING FRAMEWORK
+# ==========================================
+C_DEFAULT='\033[0m'
+C_BLUE='\033[1;34m'
+C_CYAN='\033[1;36m'
+C_GREEN='\033[1;32m'
+C_YELLOW='\033[1;33m'
+C_RED='\033[1;31m'
+C_MAGENTA='\033[1;35m'
+
+log_info() { echo -e "${C_BLUE}ℹ${C_DEFAULT} $1"; }
+log_succ() { echo -e "${C_GREEN}✔${C_DEFAULT} $1"; }
+log_warn() { echo -e "${C_YELLOW}⚠${C_DEFAULT} $1"; }
+log_err()  { echo -e "${C_RED}✖${C_DEFAULT} $1"; }
+log_step() { echo -e "\n${C_MAGENTA}==>${C_DEFAULT} ${C_CYAN}$1${C_DEFAULT}"; }
+
+TOTAL_STEPS=7
+CURRENT_STEP=0
+
+draw_progress() {
+    CURRENT_STEP=$((CURRENT_STEP + 1))
+    let _progress=(${CURRENT_STEP}*100/${TOTAL_STEPS}*100)/100
+    let _done=(${_progress}*4)/10
+    let _left=40-$_done
+    _fill=$(printf "%${_done}s")
+    _empty=$(printf "%${_left}s")
+    printf "\r${C_BLUE}[${C_GREEN}${_fill// /█}${C_DEFAULT}${_empty// /░}${C_BLUE}] ${_progress}%%${C_DEFAULT} - %-40s" "$1"
+}
+
+# ==========================================
 # ENV & CREDENTIALS
 # ==========================================
 
-# Load exact credentials from deployment footprint
 if [ ! -f "./visionstack_credentials.txt" ]; then
-    echo "ERROR: visionstack_credentials.txt not found!"
-    echo "Please ensure the stack is deployed successfully using install.sh first."
+    log_err "visionstack_credentials.txt not found!"
+    log_info "Please ensure the stack is deployed successfully using install.sh first."
     exit 1
 fi
 
-echo "Loading Master Credentials..."
+log_info "Loading Master Credentials..."
 export MASTER_PWD=$(grep -m 1 "Master Password:" ./visionstack_credentials.txt | awk '{print $3}')
 export GRAYLOG_PASSWORD_SECRET=$(grep -m 1 "Graylog Secret:" ./visionstack_credentials.txt | awk '{print $3}')
 export NETBOX_SECRET_KEY=$(grep -m 1 "Netbox Secret Key:" ./visionstack_credentials.txt | awk '{print $4}')
@@ -36,29 +65,27 @@ GRAFANA_API="http://localhost:8050/api"
 # ==========================================
 # HELPER FUNCTIONS
 # ==========================================
-
 wait_for_apis() {
-    echo -n "Waking up APIs (Waiting for migrations)..."
+    log_info "Waking up APIs (Waiting for migrations)..."
     TIMEOUT=0
+    printf "  "
     while ! curl -s -X GET "$PORTAINER_API/status" > /dev/null; do
-        echo -n "."
+        printf "${C_CYAN}❖${C_DEFAULT}"
         sleep 3
         TIMEOUT=$((TIMEOUT + 1))
         if [ $TIMEOUT -gt 20 ]; then break; fi
     done
-    echo " Online!"
+    printf " ${C_GREEN}Online!${C_DEFAULT}\n"
 }
 
 # ------------------------------------------
 # PORTAINER
 # ------------------------------------------
 init_portainer() {
-    echo "Configuring Portainer Admin User..."
     curl -s -X POST "$PORTAINER_API/users/admin/init" \
         -H 'Content-Type: application/json' \
         -d "{\"Username\":\"admin\",\"Password\":\"$MASTER_PWD\"}" > /dev/null
 
-    echo "Provisioning Portainer Universal Users..."
     JWT=$(curl -s -X POST "$PORTAINER_API/auth" \
         -H 'Content-Type: application/json' \
         -d "{\"Username\":\"admin\",\"Password\":\"$MASTER_PWD\"}" | grep -oP '(?<="jwt":")[^"]+')
@@ -78,9 +105,6 @@ init_portainer() {
 # ZABBIX
 # ------------------------------------------
 init_zabbix() {
-    echo "Configuring Zabbix Agent Registration..."
-    
-    # 1. Get Auth Token
     ZBX_TOKEN=$(curl -s -X POST -H 'Content-Type: application/json' -d '{
         "jsonrpc": "2.0",
         "method": "user.login",
@@ -89,11 +113,9 @@ init_zabbix() {
     }' "$ZABBIX_API" | jq -r .result)
 
     if [ -z "$ZBX_TOKEN" ] || [ "$ZBX_TOKEN" == "null" ]; then
-        echo "Failed to retrieve Zabbix Auth Token."
         return
     fi
 
-    echo "Resolving internal Zabbix Entity IDs dynamically..."
     ZBX_SERVER_ID=$(curl -s -X POST -H 'Content-Type: application/json' -d "{
         \"jsonrpc\": \"2.0\",
         \"method\": \"host.get\",
@@ -118,7 +140,7 @@ init_zabbix() {
         \"id\": 1
     }" "$ZABBIX_API" | jq -r '.result[0].interfaceid')
 
-    # 2. Update default agent DNS interface
+    # Update default agent DNS interface
     curl -s -X POST -H 'Content-Type: application/json' -d "{
         \"jsonrpc\": \"2.0\",
         \"method\": \"hostinterface.update\",
@@ -132,7 +154,7 @@ init_zabbix() {
         \"id\": 2
     }" "$ZABBIX_API" > /dev/null
 
-    # 3. Attach 'Docker by Zabbix agent 2' template (using jq appending)
+    # Attach 'Docker by Zabbix agent 2' template (using jq appending)
     ZBX_HOST_DATA=$(curl -s -X POST -H 'Content-Type: application/json' -d "{
         \"jsonrpc\": \"2.0\",
         \"method\": \"host.get\",
@@ -157,7 +179,7 @@ init_zabbix() {
         \"id\": 4
     }" "$ZABBIX_API" > /dev/null
 
-    # 4. Create HTTP Tracking for Container GUIs
+    # Create HTTP Tracking for Container GUIs
     curl -s -X POST -H 'Content-Type: application/json' -d "{
         \"jsonrpc\": \"2.0\",
         \"method\": \"httptest.create\",
@@ -176,8 +198,7 @@ init_zabbix() {
         \"id\": 5
     }" "$ZABBIX_API" > /dev/null
 
-    # 5. Provision Zabbix Universal Users
-    echo "Provisioning Zabbix Universal Users..."
+    # Provision Zabbix Universal Users
     curl -s -X POST -H 'Content-Type: application/json' -d "{
         \"jsonrpc\": \"2.0\",
         \"method\": \"user.create\",
@@ -209,20 +230,21 @@ init_zabbix() {
 # NETBOX
 # ------------------------------------------
 init_netbox() {
-    echo -n "Running Netbox Database Migrations (This takes ~2-6.5 minutes) "
     docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input > /dev/null 2>&1 &
     MIGRATE_PID=$!
 
     SPIN='-\|/'
     i=0
+    # Add a custom spinner for migrations that preserves the progress bar
+    printf "\n  ${C_CYAN}Running Netbox Migrations (~2-6 min) ${C_DEFAULT}"
     while kill -0 $MIGRATE_PID 2>/dev/null; do
         i=$(( (i+1) %4 ))
         printf "\b${SPIN:$i:1}"
         sleep 0.1
     done
-    printf "\bDone!\n"
+    printf "\b${C_GREEN}Done!${C_DEFAULT}\n"
 
-    echo -n "Waiting for Netbox Web UI to come online (This can take ~6.5min) "
+    printf "  ${C_CYAN}Waiting for Netbox Web UI ${C_DEFAULT}"
     TIMEOUT=0
     while true; do
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 "http://localhost:8020/login/" || echo "000")
@@ -236,13 +258,15 @@ init_netbox() {
         done
         TIMEOUT=$((TIMEOUT + 1))
         if [ $TIMEOUT -gt 180 ]; then
-            echo -e "\bTimeout!"
+            printf "\b${C_RED}Timeout!${C_DEFAULT}\n"
             break
         fi
     done
-    echo -e "\bOnline!"
+    printf "\b${C_GREEN}Online!${C_DEFAULT}\n"
 
-    echo "Generating Netbox Admin User and Auto-Discovering Containers..."
+    # Go back up two lines to redraw over the sub-progress blocks to keep it clean, or leave them.
+    # We will leave them so the user knows what took so long.
+    
     CONTAINERS=$(docker ps --format '{{.Names}}')
 
     docker exec -i visionstack-netbox python3 manage.py shell <<EOF
@@ -294,8 +318,6 @@ except Exception as e:
     print(f"Container Discovery Error: {e}")
 EOF
 
-    echo "Bootstrapping Netbox Inventory via API..."
-    
     run_netbox_post() {
         curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" -d "$2" "$NETBOX_API/$1" > /dev/null
     }
@@ -306,12 +328,10 @@ EOF
     run_netbox_post "dcim/device-types/" '{"manufacturer": {"slug": "visionstack"}, "model": "Docker Container", "slug": "docker-container"}'
     run_netbox_post "dcim/device-types/" '{"manufacturer": {"slug": "visionstack"}, "model": "Baremetal Server", "slug": "baremetal-server"}'
     
-    echo "Registering Host Engine in Netbox..."
     run_netbox_post "dcim/devices/" '{"name": "VisionStack Host Server", "device_type": {"slug": "baremetal-server"}, "site": {"slug": "visionstack"}, "status": "active", "role": {"slug": "infrastructure"}}'
 
     SERVICES=("Portainer" "Netbox" "Zabbix" "Graylog" "Grafana" "Prometheus" "ntopng" "Oxidized")
     for SERVICE in "${SERVICES[@]}"; do
-        echo "Registering $SERVICE in Netbox..."
         run_netbox_post "dcim/devices/" "{\"name\": \"$SERVICE\", \"device_type\": {\"slug\": \"docker-container\"}, \"site\": {\"slug\": \"visionstack\"}, \"status\": \"active\", \"role\": {\"slug\": \"infrastructure\"}}"
     done
 }
@@ -320,7 +340,6 @@ EOF
 # OXIDIZED
 # ------------------------------------------
 init_oxidized() {
-    echo "Configuring Oxidized..."
     cat <<EOF > ./data/oxidized/config
 ---
 username: admin
@@ -346,8 +365,6 @@ EOF
 # GRAFANA
 # ------------------------------------------
 init_grafana() {
-    echo "Provisioning Grafana Universal Users..."
-    # Helper for Grafana Admin API
     run_grafana_admin() {
         curl -s -X POST -H 'Content-Type: application/json' -d "$2" "http://admin:admin@localhost:8050/api/$1" > /dev/null
     }
@@ -355,8 +372,6 @@ init_grafana() {
     run_grafana_admin "admin/users" "{\"name\":\"vision-read\",\"email\":\"read@visionstack\",\"login\":\"vision-read\",\"password\":\"$VISION_READ_PWD\"}"
     run_grafana_admin "admin/users" "{\"name\":\"vision-write\",\"email\":\"write@visionstack\",\"login\":\"vision-write\",\"password\":\"$VISION_WRITE_PWD\"}"
 
-    echo "Connecting Grafana to Prometheus and Backend Databases..."
-    
     run_grafana_admin "datasources" '{"name":"Prometheus","type":"prometheus","url":"http://visionstack-prometheus:9090","access":"proxy"}'
     run_grafana_admin "datasources" "{\"name\":\"PostgreSQL (Netbox)\",\"type\":\"postgres\",\"url\":\"visionstack-postgres-netbox:5432\",\"access\":\"proxy\",\"database\":\"netbox\",\"user\":\"netbox\",\"secureJsonData\":{\"password\":\"$MASTER_PWD\"},\"jsonData\":{\"sslmode\":\"disable\",\"postgresVersion\":15}}"
     run_grafana_admin "datasources" "{\"name\":\"PostgreSQL (Zabbix)\",\"type\":\"postgres\",\"url\":\"visionstack-postgres-zabbix:5432\",\"access\":\"proxy\",\"database\":\"zabbix\",\"user\":\"zabbix\",\"secureJsonData\":{\"password\":\"$MASTER_PWD\"},\"jsonData\":{\"sslmode\":\"disable\",\"postgresVersion\":15}}"
@@ -369,7 +384,6 @@ init_grafana() {
 # GRAYLOG
 # ------------------------------------------
 init_graylog() {
-    echo "Provisioning Graylog Universal Users..."
     run_graylog_post() {
         curl -s -u "admin:$MASTER_PWD" -X POST -H 'Content-Type: application/json' -H 'X-Requested-By: visionstack' -d "$2" "$GRAYLOG_API/$1" > /dev/null
     }
@@ -377,19 +391,14 @@ init_graylog() {
     run_graylog_post "users" "{\"username\":\"vision-read\",\"email\":\"read@visionstack\",\"full_name\":\"Vision Read\",\"password\":\"$VISION_READ_PWD\",\"roles\":[\"Reader\"]}"
     run_graylog_post "users" "{\"username\":\"vision-write\",\"email\":\"write@visionstack\",\"full_name\":\"Vision Write\",\"password\":\"$VISION_WRITE_PWD\",\"roles\":[\"Admin\"]}"
 
-    echo "Configuring Graylog Inputs (GELF & Syslog)..."
     run_graylog_post "system/inputs" '{"title":"Docker GELF","type":"org.graylog2.inputs.gelf.udp.GELFUDPInput","configuration":{"bind_address":"0.0.0.0","port":12201,"recv_buffer_size":1048576},"global":true}'
     run_graylog_post "system/inputs" '{"title":"Network Syslog","type":"org.graylog2.inputs.syslog.udp.SyslogUDPInput","configuration":{"bind_address":"0.0.0.0","port":1514,"recv_buffer_size":1048576,"force_rdns":false},"global":true}'
-
-    echo "Graylog is now listening on UDP 514 (Syslog) and UDP 12201 (GELF)."
 }
 
 # ------------------------------------------
 # ZABBIX <-> NETBOX SYNC
 # ------------------------------------------
 link_zabbix_netbox() {
-    echo "Linking Zabbix to Netbox API..."
-    
     # Needs a new token to ensure session is valid
     ZBX_TOKEN=$(curl -s -X POST -H 'Content-Type: application/json' -d '{
         "jsonrpc": "2.0",
@@ -414,36 +423,63 @@ link_zabbix_netbox() {
         \"id\":1
     }" "$ZABBIX_API" | jq -r '.result[0].templateid')
 
-    curl -s -X POST -H "Content-Type: application/json" -d "{
-        \"jsonrpc\": \"2.0\",
-        \"method\": \"host.update\",
-        \"params\": {
-            \"hostid\": \"$ZABBIX_HOST_ID\",
-            \"templates\": [{\"templateid\": \"$TEMPLATE_ID\"}],
-            \"macros\": [
-                {\"macro\": \"{\$NETBOX.URL}\", \"value\": \"http://visionstack-netbox:8080/api\"},
-                {\"macro\": \"{\$NETBOX.TOKEN}\", \"value\": \"$NETBOX_TOKEN\"},
-                {\"macro\": \"{\$NETBOX.FILTER}\", \"value\": \"site=visionstack\"}
-            ]
-        },
-        \"auth\": \"$ZBX_TOKEN\",
-        \"id\": 1
-    }" "$ZABBIX_API" > /dev/null
-
-    echo "Integration Complete. Zabbix is now monitoring the Netbox Inventory."
+    if [ -n "$TEMPLATE_ID" ] && [ "$TEMPLATE_ID" != "null" ]; then
+        curl -s -X POST -H "Content-Type: application/json" -d "{
+            \"jsonrpc\": \"2.0\",
+            \"method\": \"host.update\",
+            \"params\": {
+                \"hostid\": \"$ZABBIX_HOST_ID\",
+                \"templates\": [{\"templateid\": \"$TEMPLATE_ID\"}],
+                \"macros\": [
+                    {\"macro\": \"{\$NETBOX.URL}\", \"value\": \"http://visionstack-netbox:8080/api\"},
+                    {\"macro\": \"{\$NETBOX.TOKEN}\", \"value\": \"$NETBOX_TOKEN\"},
+                    {\"macro\": \"{\$NETBOX.FILTER}\", \"value\": \"site=visionstack\"}
+                ]
+            },
+            \"auth\": \"$ZBX_TOKEN\",
+            \"id\": 1
+        }" "$ZABBIX_API" > /dev/null
+    fi
 }
 
 # ==========================================
 # EXECUTION
 # ==========================================
-echo "Initializing visionstack API Integrations..."
+clear
+echo -e "${C_MAGENTA}"
+echo "    _    ___     _               _____ __             "
+echo "   | |  / (_)__ (_)___  ____    / ___// /_____  _____"
+echo "   | | / / / ___/ / __ \/ __ \   \__ \/ __/ __ \/ ___/"
+echo "   | |/ / (__  ) / /_/ / / / /  ___/ / /_/ /_/ / /__  "
+echo "   |___/_/____/_/\____/_/ /_/  /____/\__/\__,_/\___/  "
+echo "                                                      "
+echo -e "${C_DEFAULT}"
+log_step "Initializing Component Integrations..."
 wait_for_apis
+
+draw_progress "Configuring Portainer..."
 init_portainer
+
+draw_progress "Configuring Zabbix..."
 init_zabbix
+
+draw_progress "Configuring Netbox..."
 init_netbox
+
+draw_progress "Configuring Oxidized..."
 init_oxidized
+
+draw_progress "Configuring Grafana..."
 init_grafana
+
+draw_progress "Configuring Graylog..."
 init_graylog
+
+draw_progress "Linking Zabbix <-> Netbox..."
 link_zabbix_netbox
 
-echo "Setup Complete. visionstack APIs are fully autonomous and integrated."
+echo ""
+echo ""
+log_succ "visionstack Configuration Complete!"
+echo -e "         ${C_GREEN}All APIs are fully autonomous and integrated.${C_DEFAULT}"
+echo ""

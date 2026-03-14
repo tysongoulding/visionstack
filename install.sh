@@ -2,30 +2,55 @@
 # visionstack Installer v1.4
 set -e
 
-echo "Initializing visionstack Deployment..."
+# ==========================================
+# UI & LOGGING FRAMEWORK
+# ==========================================
+C_DEFAULT='\033[0m'
+C_BLUE='\033[1;34m'
+C_CYAN='\033[1;36m'
+C_GREEN='\033[1;32m'
+C_YELLOW='\033[1;33m'
+C_RED='\033[1;31m'
+C_MAGENTA='\033[1;35m'
+
+log_info() { echo -e "${C_BLUE}ℹ${C_DEFAULT} $1"; }
+log_succ() { echo -e "${C_GREEN}✔${C_DEFAULT} $1"; }
+log_warn() { echo -e "${C_YELLOW}⚠${C_DEFAULT} $1"; }
+log_err()  { echo -e "${C_RED}✖${C_DEFAULT} $1"; }
+log_step() { echo -e "\n${C_MAGENTA}==>${C_DEFAULT} ${C_CYAN}$1${C_DEFAULT}"; }
+
+clear
+echo -e "${C_MAGENTA}"
+echo "                     "
+echo "  🆅🅸🆂🅸🅾🅽🆂🆃🅰🅲🅺  "
+echo "                     "
+echo -e "${C_DEFAULT}"
+log_step "Initializing Stage 1: Infrastructure Deployment"
 
 # 1. Prerequisite Check
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root (sudo)." 
+   log_err "This script must be run as root (sudo)." 
    exit 1
 fi
 
 # 1.5 Install Dependencies
 if ! [ -x "$(command -v docker)" ]; then
-    echo "Installing Docker..."
-    curl -fsSL https://get.docker.com | sh
+    log_info "Installing Docker Engine..."
+    curl -fsSL https://get.docker.com | sh > /dev/null 2>&1
     sudo usermod -aG docker $USER
 fi
 
 if ! docker compose version &> /dev/null && ! docker-compose version &> /dev/null; then
-    echo "Installing Docker-Compose..."
-    sudo apt-get update && sudo apt-get install -y docker-compose-plugin docker-compose
+    log_info "Installing Docker-Compose..."
+    sudo apt-get update > /dev/null 2>&1 && sudo apt-get install -y docker-compose-plugin docker-compose > /dev/null 2>&1
 fi
 
-# 2. System Optimization & Log Rotation (Optimized for 200GB)
-echo "Configuring System & Docker Log Rotation..."
-sysctl -w vm.max_map_count=262144
-echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+# 2. System Optimization & Log Rotation
+log_info "Configuring Kernel & Docker Log Rotation (Max 300MB per container)..."
+sysctl -w vm.max_map_count=262144 > /dev/null 2>&1
+if ! grep -q "vm.max_map_count=262144" /etc/sysctl.conf; then
+    echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+fi
 
 mkdir -p /etc/docker
 cat <<EOF > /etc/docker/daemon.json
@@ -39,82 +64,77 @@ cat <<EOF > /etc/docker/daemon.json
 EOF
 systemctl restart docker
 
-# 1.6 Network Security (Open Syslog & Web Ports)
-echo "Configuring Host Firewall..."
-# Ensure SSH is allowed so you don't get locked out!
-ufw allow 22/tcp 
-# Standard Syslog ports for your network gear
-ufw allow 514/udp
-ufw allow 514/tcp
-# visionstack UI Ports
-ufw allow 8000:8080/tcp
-# Enable firewall without asking for confirmation
-ufw --force enable
+# 1.6 Network Security
+log_info "Configuring Host Firewall (UFW)..."
+ufw allow 22/tcp > /dev/null 2>&1
+ufw allow 514/udp > /dev/null 2>&1
+ufw allow 514/tcp > /dev/null 2>&1
+ufw allow 8000:8080/tcp > /dev/null 2>&1
+ufw --force enable > /dev/null 2>&1
 
-# 2.5 Add Weekly Cleanup Cron Job (Set and Forget)
-echo "Adding weekly maintenance schedule..."
-(crontab -l 2>/dev/null; echo "0 0 * * 0 docker system prune -af --volumes > /dev/null 2>&1") | crontab -
+# 2.5 Add Weekly Cleanup Cron Job
+log_info "Injecting automated weekly Docker cleanup schedule..."
+(crontab -l 2>/dev/null | grep -v "docker system prune"; echo "0 0 * * 0 docker system prune -af --volumes > /dev/null 2>&1") | crontab -
 
 # 3. Directory & Compose File Preparation
+log_info "Provisioning underlying persistence directories..."
 mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized,postgres-netbox,postgres-zabbix,mongodb,opensearch}
 chmod -R 777 ./data
 
 # If running via exactly a one-liner without cloning, download the compose file
 if [ ! -f "docker-compose.yaml" ]; then
-    echo "Downloading docker-compose.yaml..."
+    log_info "Downloading architectural configuration (docker-compose.yaml)..."
     curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/docker-compose.yaml?t=$(date +%s)" -o docker-compose.yaml
 fi
 
 if [ ! -f "configure.sh" ]; then
-    echo "Downloading configure.sh..."
+    log_info "Downloading integration engine (configure.sh)..."
     curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/configure.sh?t=$(date +%s)" -o configure.sh
     chmod +x configure.sh
 fi
 
+log_succ "Host System Prep Complete."
+
 # 4. Setup Wizard
-# Auto-detect IP if not provided
+log_step "Generating Security Footprint"
 if [ -z "$HOST_IP" ]; then
-    # Try hostname -I first, if not available use ip route
     if command -v hostname >/dev/null 2>&1; then
         HOST_IP=$(hostname -I | awk '{print $1}')
     else
         HOST_IP=$(ip route get 1 | awk '{print $NF;exit}')
     fi
-    echo "Auto-detected Host IP: $HOST_IP"
+    log_info "Auto-detected Host IP: $HOST_IP"
 fi
 
-# Check for existing credentials to ensure idempotency on re-runs
 if [ -f "./visionstack_credentials.txt" ]; then
-    echo "Existing credentials file found. Reusing previous secrets to prevent database lockout..."
+    log_warn "Existing credentials file found. Reusing previous secrets to prevent database lockout."
     export MASTER_PWD=$(grep -m 1 "Master Password:" ./visionstack_credentials.txt | awk '{print $3}')
     export GRAYLOG_PASSWORD_SECRET=$(grep -m 1 "Graylog Secret:" ./visionstack_credentials.txt | awk '{print $3}')
     export NETBOX_SECRET_KEY=$(grep -m 1 "Netbox Secret Key:" ./visionstack_credentials.txt | awk '{print $4}')
     export NETBOX_TOKEN=$(grep -m 1 "Netbox API Token:" ./visionstack_credentials.txt | awk '{print $4}')
+    export API_TOKEN_PEPPERS=$(grep -m 1 "Netbox Token Pepper:" ./visionstack_credentials.txt | awk '{print $4}')
     export VISION_READ_PWD=$(grep -m 1 "vision-read Pass:" ./visionstack_credentials.txt | awk '{print $3}')
     export VISION_WRITE_PWD=$(grep -m 1 "vision-write Pass:" ./visionstack_credentials.txt | awk '{print $3}')
     export VISION_READ_TOKEN=$(grep -m 1 "vision-read App Token:" ./visionstack_credentials.txt | awk '{print $4}')
     export VISION_WRITE_TOKEN=$(grep -m 1 "vision-write App Token:" ./visionstack_credentials.txt | awk '{print $4}')
     export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
 else
-    # Auto-generate password if not provided
     if [ -z "$MASTER_PWD" ]; then
         MASTER_PWD=$(openssl rand -hex 12)
-        echo "Auto-generated Master Password."
+        log_info "Auto-generated Secure Master Password."
     fi
 
-    # Auto-generate universal service accounts
     export VISION_READ_PWD=$(openssl rand -hex 16)
     export VISION_WRITE_PWD=$(openssl rand -hex 16)
     export VISION_READ_TOKEN=$(openssl rand -hex 20)
     export VISION_WRITE_TOKEN=$(openssl rand -hex 20)
 
-    # 5. Generate Application Secrets early
     export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
     export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
     export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
     export NETBOX_TOKEN=$(openssl rand -hex 20)
+    export API_TOKEN_PEPPERS=$(openssl rand -hex 32)
 
-    # Save credentials for the admin to reference later
     cat <<EOF > ./visionstack_credentials.txt
 ========================================
  visionstack Auto-Generated Credentials
@@ -195,49 +215,51 @@ UNIVERSAL SERVICE ACCOUNTS:
 SYSTEM SECRETS (Do not lose these!):
 ----------------------------------------
 Netbox API Token: $NETBOX_TOKEN
+Netbox Token Pepper: $API_TOKEN_PEPPERS
 Netbox Secret Key: $NETBOX_SECRET_KEY
 Graylog Secret: $GRAYLOG_PASSWORD_SECRET
 EOF
     chmod 600 ./visionstack_credentials.txt
-    echo "Credentials saved to ./visionstack_credentials.txt (Keep this safe!)"
+    log_succ "Secrets and Credentials compiled securely to ./visionstack_credentials.txt"
 fi
 
 # 6. Launch the Stack
-echo "Deploying containers..."
+log_step "Launching Engine Core (Docker Compose)"
 export MASTER_PWD=$MASTER_PWD
 export HOST_IP=$HOST_IP
 export GRAYLOG_ROOT_PASSWORD_SHA2=$GRAYLOG_ROOT_PASSWORD_SHA2
 export GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
 export NETBOX_SECRET_KEY=$NETBOX_SECRET_KEY
+export API_TOKEN_PEPPERS=$API_TOKEN_PEPPERS
 
 if docker compose version &> /dev/null; then
     docker compose up -d --pull always --force-recreate
 elif docker-compose version &> /dev/null; then
     docker-compose up -d --pull always --force-recreate
 else
-    echo "Command 'docker compose' or 'docker-compose' not found!"
+    log_err "Command 'docker compose' or 'docker-compose' not found!"
     exit 1
 fi
 
+log_succ "Stage 1 Complete: Raw network containers deployed."
 
 # --- Final Credential Print ---
-echo "------------------------------------------------"
-echo "visionstack infrastructure is LIVE!"
-echo "------------------------------------------------"
-echo "NetClaw (Host):  http://$HOST_IP:8000"
-echo "Portainer:       http://$HOST_IP:8010 | admin / $MASTER_PWD"
-echo "Netbox:          http://$HOST_IP:8020 | admin / $MASTER_PWD"
-echo "Zabbix (Web):    http://$HOST_IP:8030 | Admin / zabbix"
-echo "Graylog:         http://$HOST_IP:8040 | admin / $MASTER_PWD"
-echo "Grafana:         http://$HOST_IP:8050 | admin / admin"
-echo "Prometheus:      http://$HOST_IP:8060 | No authentication by default"
-echo "ntopng:          http://$HOST_IP:8070 | admin / admin"
-echo "------------------------------------------------"
-echo "Service Accounts Injected:"
-echo "vision-read  | $VISION_READ_PWD"
-echo "vision-write | $VISION_WRITE_PWD"
-echo "------------------------------------------------"
-echo "STAGE 1 COMPLETE: Raw containers deployed."
-echo "------------------------------------------------"
-echo "STAGE 2 COMMENCING: Auto-Configuring APIs and Webhooks..."
+echo -e "\n${C_MAGENTA}================================================================${C_DEFAULT}"
+echo -e "${C_GREEN}  visionstack Infrastructure is LIVE!${C_DEFAULT}"
+echo -e "${C_MAGENTA}================================================================${C_DEFAULT}"
+echo -e "${C_CYAN}  NetClaw (Host) :${C_DEFAULT} http://$HOST_IP:8000"
+echo -e "${C_CYAN}  Portainer      :${C_DEFAULT} http://$HOST_IP:8010 | admin / $MASTER_PWD"
+echo -e "${C_CYAN}  Netbox         :${C_DEFAULT} http://$HOST_IP:8020 | admin / $MASTER_PWD"
+echo -e "${C_CYAN}  Zabbix (Web)   :${C_DEFAULT} http://$HOST_IP:8030 | Admin / zabbix"
+echo -e "${C_CYAN}  Graylog        :${C_DEFAULT} http://$HOST_IP:8040 | admin / $MASTER_PWD"
+echo -e "${C_CYAN}  Grafana        :${C_DEFAULT} http://$HOST_IP:8050 | admin / admin"
+echo -e "${C_CYAN}  Prometheus     :${C_DEFAULT} http://$HOST_IP:8060 | (No auth)"
+echo -e "${C_CYAN}  ntopng         :${C_DEFAULT} http://$HOST_IP:8070 | admin / admin"
+echo -e "${C_MAGENTA}----------------------------------------------------------------${C_DEFAULT}"
+echo -e "${C_YELLOW}  Universal Service Accounts Active:${C_DEFAULT}"
+echo -e "  vision-read  | $VISION_READ_PWD"
+echo -e "  vision-write | $VISION_WRITE_PWD"
+echo -e "${C_MAGENTA}================================================================${C_DEFAULT}\n"
+
+log_step "STAGE 2 COMMENCING: Auto-Configuring APIs and Webhooks..."
 bash ./configure.sh
