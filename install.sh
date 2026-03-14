@@ -39,6 +39,18 @@ cat <<EOF > /etc/docker/daemon.json
 EOF
 systemctl restart docker
 
+# 1.6 Network Security (Open Syslog & Web Ports)
+echo "Configuring Host Firewall..."
+# Ensure SSH is allowed so you don't get locked out!
+ufw allow 22/tcp 
+# Standard Syslog ports for your network gear
+ufw allow 514/udp
+ufw allow 514/tcp
+# visionStack UI Ports
+ufw allow 8000:8080/tcp
+# Enable firewall without asking for confirmation
+ufw --force enable
+
 # 2.5 Add Weekly Cleanup Cron Job (Set and Forget)
 echo "Adding weekly maintenance schedule..."
 (crontab -l 2>/dev/null; echo "0 0 * * 0 docker system prune -af --volumes > /dev/null 2>&1") | crontab -
@@ -192,3 +204,19 @@ curl -s -X POST -H "Content-Type: application/json-rpc" \
   }" http://localhost:8030/api_jsonrpc.php > /dev/null
 
 echo "Integration Complete. Zabbix is now monitoring the Netbox Inventory."
+
+# --- Graylog API Bootstrap (Automated Inputs) ---
+echo "Configuring Graylog Inputs (GELF & Syslog)..."
+
+# 1. Create GELF UDP Input (Port 12201)
+curl -s -u admin:$MASTER_PWD -X POST -H "Content-Type: application/json" -H "X-Requested-By: visionStack" \
+  -d '{"title":"Docker GELF","type":"org.graylog2.inputs.gelf.udp.GELFUDPInput","configuration":{"bind_address":"0.0.0.0","port":12201,"recv_buffer_size":1048576},"global":true}' \
+  http://localhost:8040/api/system/inputs > /dev/null
+
+# 2. Create Syslog UDP Input (Port 1514)
+curl -s -u admin:$MASTER_PWD -X POST -H "Content-Type: application/json" -H "X-Requested-By: visionStack" \
+  -d '{"title":"Network Syslog","type":"org.graylog2.inputs.syslog.udp.SyslogUDPInput","configuration":{"bind_address":"0.0.0.0","port":1514,"recv_buffer_size":1048576,"force_rdns":false},"global":true}' \
+  http://localhost:8040/api/system/inputs > /dev/null
+
+echo "Graylog is now listening on UDP 514 (Syslog) and UDP 12201 (GELF)."
+echo "Setup Complete. visionStack is fully autonomous."
