@@ -173,9 +173,9 @@ export GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
 export NETBOX_SECRET_KEY=$NETBOX_SECRET_KEY
 
 if docker compose version &> /dev/null; then
-    docker compose up -d --force-recreate
+    docker compose up -d --pull always --force-recreate
 elif docker-compose version &> /dev/null; then
-    docker-compose up -d --force-recreate
+    docker-compose up -d --pull always --force-recreate
 else
     echo "Command 'docker compose' or 'docker-compose' not found!"
     exit 1
