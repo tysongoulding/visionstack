@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Management & Observability
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: vision-portainer
+    ports: ["8010:9000", "9443:9443"]
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data"]
+    restart: always
+
+  netbox:
+    image: netboxcommunity/netbox:latest
+    container_name: vision-netbox
+    ports: ["8020:8080"]
+    environment: [SECRET_KEY=vIsIoNsTaCkSeCrEt]
+    depends_on: [postgres, redis]
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:ubuntu-7.0-latest
+    container_name: vision-zabbix
+    ports: ["8030:10051"]
+    environment:
+      - DB_SERVER_HOST=postgres
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=${MASTER_PWD}
+
+  graylog:
+    image: graylog/graylog:6.0
+    container_name: vision-graylog
+    ports: ["8040:9000", "12201:12201/udp"]
+    environment:
+      - GRAYLOG_PASSWORD_SECRET=visionstacksecret12345
+      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+    depends_on: [mongodb, opensearch]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: vision-grafana
+    ports: ["8050:3000"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: vision-prometheus
+    ports: ["8060:9090"]
+
+  ntopng:
+    image: ntop/ntopng:latest
+    container_name: vision-ntopng
+    ports: ["8070:3000"]
+    command: ["--local-networks", "192.168.0.0/16", "--interface", "tcp://nprobe:5556"]
+
+  oxidized:
+    image: oxidized/oxidized:latest
+    container_name: vision-oxidized
+    ports: ["8080:8888"]
+    volumes: ["./data/oxidized:/root/.config/oxidized"]
+
+  # Infrastructure Backend
+  postgres:
+    image: postgres:15-alpine
+    environment: [POSTGRES_PASSWORD=${MASTER_PWD}]
+  mongodb:
+    image: mongo:7.0
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    environment: ["discovery.type=single-node", "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m", "DISABLE_INSTALL_DEMO_CONFIG=true", "DISABLE_SECURITY_PLUGIN=true"]
+  redis:
+    image: redis:7-alpine
