@@ -16,6 +16,10 @@ export MASTER_PWD=$(grep -m 1 "Master Password:" ./visionstack_credentials.txt |
 export GRAYLOG_PASSWORD_SECRET=$(grep -m 1 "Graylog Secret:" ./visionstack_credentials.txt | awk '{print $3}')
 export NETBOX_SECRET_KEY=$(grep -m 1 "Netbox Secret Key:" ./visionstack_credentials.txt | awk '{print $4}')
 export NETBOX_TOKEN=$(grep -m 1 "Netbox API Token:" ./visionstack_credentials.txt | awk '{print $4}')
+export VISION_READ_PWD=$(grep -m 1 "vision-read Pass:" ./visionstack_credentials.txt | awk '{print $3}')
+export VISION_WRITE_PWD=$(grep -m 1 "vision-write Pass:" ./visionstack_credentials.txt | awk '{print $3}')
+export VISION_READ_TOKEN=$(grep -m 1 "vision-read App Token:" ./visionstack_credentials.txt | awk '{print $4}')
+export VISION_WRITE_TOKEN=$(grep -m 1 "vision-write App Token:" ./visionstack_credentials.txt | awk '{print $4}')
 export HOST_IP=$(grep -m 1 "Host IP (Detected):" ./visionstack_credentials.txt | awk '{print $4}')
 
 # 7. Post-Deployment Integration
@@ -33,6 +37,13 @@ echo "Configuring Portainer Admin User..."
 curl -s --request POST 'http://localhost:8010/api/users/admin/init' \
   --header 'Content-Type: application/json' \
   --data "{\"Username\":\"admin\",\"Password\":\"$MASTER_PWD\"}" > /dev/null
+
+echo "Provisioning Portainer Universal Users..."
+JWT=$(curl -s -X POST 'http://localhost:8010/api/auth' -H 'Content-Type: application/json' -d "{\"Username\":\"admin\",\"Password\":\"$MASTER_PWD\"}" | grep -oP '(?<="jwt":")[^"]+')
+# Role 2 = Standard User
+curl -s -X POST 'http://localhost:8010/api/users' -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' -d "{\"Username\":\"vision-read\",\"Password\":\"$VISION_READ_PWD\",\"Role\":2}" > /dev/null
+# Role 1 = Administrator
+curl -s -X POST 'http://localhost:8010/api/users' -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' -d "{\"Username\":\"vision-write\",\"Password\":\"$VISION_WRITE_PWD\",\"Role\":1}" > /dev/null
 
 # --- Zabbix Integration ---
 echo "Configuring Zabbix Agent Registration..."
@@ -68,6 +79,18 @@ if [ -n "$ZBX_TOKEN" ]; then
     curl -s -X POST -H 'Content-Type: application/json' \
       -d "{\"jsonrpc\": \"2.0\", \"method\": \"httptest.create\", \"params\": { \"name\": \"VisionStack Web GUIs\", \"hostid\": \"$ZBX_SERVER_ID\", \"steps\": [ { \"name\": \"Portainer\", \"url\": \"http://visionstack-portainer:9000\", \"status_codes\": \"200\", \"no\": 1 }, { \"name\": \"Netbox\", \"url\": \"http://visionstack-netbox:8080/login/\", \"status_codes\": \"200\", \"no\": 2 }, { \"name\": \"Grafana\", \"url\": \"http://visionstack-grafana:3000/api/health\", \"status_codes\": \"200\", \"no\": 3 }, { \"name\": \"Zabbix Web\", \"url\": \"http://visionstack-zabbix-web:8080/ping\", \"status_codes\": \"200\", \"no\": 4 }, { \"name\": \"ntopng\", \"url\": \"http://visionstack-ntopng:3000\", \"status_codes\": \"200,302\", \"no\": 5 } ] }, \"auth\": \"$ZBX_TOKEN\", \"id\": 4}" \
       http://localhost:8030/api_jsonrpc.php > /dev/null
+      
+    # 4. Provision Zabbix Universal Users
+    echo "Provisioning Zabbix Universal Users..."
+    # user_write = roleid 3 (Super Admin), usrgrps 7 (Zabbix admins)
+    curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
+      --header 'Content-Type: application/json' \
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"user.create\", \"params\": {\"username\": \"vision-write\", \"passwd\": \"$VISION_WRITE_PWD\", \"roleid\": \"3\", \"usrgrps\": [{\"usrgrpid\": \"7\"}]}, \"auth\": \"$ZBX_TOKEN\", \"id\": 5}" > /dev/null
+    
+    # user_read = roleid 1 (User), usrgrps 8 (Guests/Read-only default in some versions, or general users)
+    curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
+      --header 'Content-Type: application/json' \
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"user.create\", \"params\": {\"username\": \"vision-read\", \"passwd\": \"$VISION_READ_PWD\", \"roleid\": \"1\", \"usrgrps\": [{\"usrgrpid\": \"8\"}]}, \"auth\": \"$ZBX_TOKEN\", \"id\": 6}" > /dev/null
 fi
 
 # --- Netbox Integration ---
@@ -126,6 +149,23 @@ user.save()
 Token.objects.filter(user=user).delete()
 Token.objects.create(user=user, key='$NETBOX_TOKEN')
 
+# Create Universal Service Accounts
+user_read, _ = User.objects.get_or_create(username='vision-read')
+user_read.is_superuser = False
+user_read.is_staff = False
+user_read.set_password('$VISION_READ_PWD')
+user_read.save()
+Token.objects.filter(user=user_read).delete()
+Token.objects.create(user=user_read, key='$VISION_READ_TOKEN')
+
+user_write, _ = User.objects.get_or_create(username='vision-write')
+user_write.is_superuser = True
+user_write.is_staff = True
+user_write.set_password('$VISION_WRITE_PWD')
+user_write.save()
+Token.objects.filter(user=user_write).delete()
+Token.objects.create(user=user_write, key='$VISION_WRITE_TOKEN')
+
 # Auto-Discover and Document Docker Containers
 try:
     cluster_type, _ = ClusterType.objects.get_or_create(name='Docker Engine', defaults={'slug': 'docker-engine'})
@@ -164,6 +204,10 @@ source:
 EOF
 
 # --- Grafana Integration ---
+echo "Provisioning Grafana Universal Users..."
+curl -s -X POST -H 'Content-Type: application/json' -d "{\"name\":\"vision-read\",\"email\":\"read@visionstack\",\"login\":\"vision-read\",\"password\":\"$VISION_READ_PWD\"}" http://admin:admin@localhost:8050/api/admin/users > /dev/null
+curl -s -X POST -H 'Content-Type: application/json' -d "{\"name\":\"vision-write\",\"email\":\"write@visionstack\",\"login\":\"vision-write\",\"password\":\"$VISION_WRITE_PWD\"}" http://admin:admin@localhost:8050/api/admin/users > /dev/null
+
 echo "Connecting Grafana to Prometheus and Backend Databases..."
 
 curl -s -X POST -H "Content-Type: application/json" \
@@ -277,6 +321,10 @@ curl -s -X POST -H "Content-Type: application/json-rpc" \
 echo "Integration Complete. Zabbix is now monitoring the Netbox Inventory."
 
 # --- Graylog API Bootstrap (Automated Inputs) ---
+echo "Provisioning Graylog Universal Users..."
+curl -s -u admin:$MASTER_PWD -X POST -H 'Content-Type: application/json' -H 'X-Requested-By: visionstack' -d "{\"username\":\"vision-read\",\"email\":\"read@visionstack\",\"full_name\":\"Vision Read\",\"password\":\"$VISION_READ_PWD\",\"roles\":[\"Reader\"]}" http://localhost:8040/api/users > /dev/null
+curl -s -u admin:$MASTER_PWD -X POST -H 'Content-Type: application/json' -H 'X-Requested-By: visionstack' -d "{\"username\":\"vision-write\",\"email\":\"write@visionstack\",\"full_name\":\"Vision Write\",\"password\":\"$VISION_WRITE_PWD\",\"roles\":[\"Admin\"]}" http://localhost:8040/api/users > /dev/null
+
 echo "Configuring Graylog Inputs (GELF & Syslog)..."
 
 # 1. Create GELF UDP Input (Port 12201)

@@ -90,6 +90,10 @@ if [ -f "./visionstack_credentials.txt" ]; then
     export GRAYLOG_PASSWORD_SECRET=$(grep -m 1 "Graylog Secret:" ./visionstack_credentials.txt | awk '{print $3}')
     export NETBOX_SECRET_KEY=$(grep -m 1 "Netbox Secret Key:" ./visionstack_credentials.txt | awk '{print $4}')
     export NETBOX_TOKEN=$(grep -m 1 "Netbox API Token:" ./visionstack_credentials.txt | awk '{print $4}')
+    export VISION_READ_PWD=$(grep -m 1 "vision-read Pass:" ./visionstack_credentials.txt | awk '{print $3}')
+    export VISION_WRITE_PWD=$(grep -m 1 "vision-write Pass:" ./visionstack_credentials.txt | awk '{print $3}')
+    export VISION_READ_TOKEN=$(grep -m 1 "vision-read App Token:" ./visionstack_credentials.txt | awk '{print $4}')
+    export VISION_WRITE_TOKEN=$(grep -m 1 "vision-write App Token:" ./visionstack_credentials.txt | awk '{print $4}')
     export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
 else
     # Auto-generate password if not provided
@@ -97,6 +101,12 @@ else
         MASTER_PWD=$(openssl rand -hex 12)
         echo "Auto-generated Master Password."
     fi
+
+    # Auto-generate universal service accounts
+    export VISION_READ_PWD=$(openssl rand -hex 16)
+    export VISION_WRITE_PWD=$(openssl rand -hex 16)
+    export VISION_READ_TOKEN=$(openssl rand -hex 20)
+    export VISION_WRITE_TOKEN=$(openssl rand -hex 20)
 
     # 5. Generate Application Secrets early
     export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
@@ -172,6 +182,16 @@ INTERNAL DATABASE CREDENTIALS:
   Host: visionstack-redis:6379
   (No authentication by default)
 
+UNIVERSAL SERVICE ACCOUNTS:
+----------------------------------------
+* vision-read (Read-Only)
+  vision-read Pass: $VISION_READ_PWD
+  vision-read App Token: $VISION_READ_TOKEN
+
+* vision-write (Global Admin)
+  vision-write Pass: $VISION_WRITE_PWD
+  vision-write App Token: $VISION_WRITE_TOKEN
+
 SYSTEM SECRETS (Do not lose these!):
 ----------------------------------------
 Netbox API Token: $NETBOX_TOKEN
@@ -202,7 +222,7 @@ fi
 
 # --- Final Credential Print ---
 echo "------------------------------------------------"
-echo "visionstack Infrastructure is LIVE!"
+echo "visionstack infrastructure is LIVE!"
 echo "------------------------------------------------"
 echo "NetClaw (Host):  http://$HOST_IP:8000"
 echo "Portainer:       http://$HOST_IP:8010 | admin / $MASTER_PWD"
@@ -212,6 +232,10 @@ echo "Graylog:         http://$HOST_IP:8040 | admin / $MASTER_PWD"
 echo "Grafana:         http://$HOST_IP:8050 | admin / admin"
 echo "Prometheus:      http://$HOST_IP:8060 | No authentication by default"
 echo "ntopng:          http://$HOST_IP:8070 | admin / admin"
+echo "------------------------------------------------"
+echo "Service Accounts Injected:"
+echo "vision-read  | $VISION_READ_PWD"
+echo "vision-write | $VISION_WRITE_PWD"
 echo "------------------------------------------------"
 echo "STAGE 1 COMPLETE: Raw containers deployed."
 echo "------------------------------------------------"
