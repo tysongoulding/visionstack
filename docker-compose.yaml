@@ -31,6 +31,7 @@ services:
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=${MASTER_PWD}
       - POSTGRES_DB=zabbix
+      - ZBX_STARTCONNECTORS=1
     depends_on: [ postgres-zabbix ]
 
   zabbix-web:
