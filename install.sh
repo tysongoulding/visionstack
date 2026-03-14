@@ -15,10 +15,11 @@ sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" >> /etc/sysctl.conf
 
 # 3. Directory Preparation
+# We create Oxidized config folder early so it doesn't crash on boot
 mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized}
 chmod -R 775 ./data
 
-# 4. Setup Wizard (Optional Variables)
+# 4. Setup Wizard
 read -p "Enter your Host IP Address: " HOST_IP
 read -p "Enter a Master Password for DBs: " MASTER_PWD
 
@@ -28,6 +29,45 @@ export MASTER_PWD=$MASTER_PWD
 export HOST_IP=$HOST_IP
 docker-compose up -d
 
+# 6. Post-Deployment Integration (Handshaking)
+echo "Waking up APIs (Waiting 45s for database migrations)..."
+sleep 45
+
+# --- Netbox Integration ---
+NETBOX_TOKEN=$(openssl rand -hex 20)
+echo "Generating Netbox API Token..."
+docker exec vision-netbox python3 manage.py create_token --user admin --token $NETBOX_TOKEN > /dev/null
+
+# --- Oxidized Integration ---
+# Ensure no spaces exist after the final EOF below
+echo "Configuring Oxidized to track Netbox inventory..."
+cat <<EOF > ./data/oxidized/config
+---
+username: admin
+password: $MASTER_PWD
+model: ios
+interval: 3600
+use_syslog: false
+debug: false
+type: git
+source:
+  default: http
+  http:
+    url: http://vision-netbox:8080/api/dcim/devices/
+    map:
+      name: name
+      model: device_type.model.slug
+    headers:
+      Authorization: "Token $NETBOX_TOKEN"
+EOF
+
+# --- Grafana Integration ---
+echo "Connecting Grafana to Prometheus telemetry..."
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"name":"Prometheus","type":"prometheus","url":"http://vision-prometheus:9090","access":"proxy"}' \
+  http://admin:admin@localhost:8050/api/datasources > /dev/null
+
+# --- Final Credential Print ---
 echo "------------------------------------------------"
 echo "visionStack is now LIVE!"
 echo "NetClaw (Host):  http://$HOST_IP:8000"
@@ -39,4 +79,9 @@ echo "Grafana:         http://$HOST_IP:8050"
 echo "Prometheus:      http://$HOST_IP:8060"
 echo "ntopng:          http://$HOST_IP:8070"
 echo "Oxidized:        http://$HOST_IP:8080"
+echo "------------------------------------------------"
+echo "INTEGRATION COMPLETE"
+echo "Netbox API Token: $NETBOX_TOKEN"
+echo "Oxidized Config:  Mapped to Netbox"
+echo "Grafana Source:   Prometheus Linked"
 echo "------------------------------------------------"
