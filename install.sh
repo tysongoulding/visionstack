@@ -1,5 +1,5 @@
 #!/bin/bash
-# visionStack Installer v1.3
+# visionStack Installer v1.4
 set -e
 
 echo "Initializing visionStack Deployment..."
@@ -22,13 +22,11 @@ if ! docker compose version &> /dev/null && ! docker-compose version &> /dev/nul
     sudo apt-get update && sudo apt-get install -y docker-compose-plugin docker-compose
 fi
 
-# 2. System Optimization
+# 2. System Optimization & Log Rotation (Optimized for 200GB)
+echo "Configuring System & Docker Log Rotation..."
 sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" >> /etc/sysctl.conf
 
-# 2.5 Docker Log Rotation (Prevent Disk Full)
-# 2.5 Docker Log Rotation (Optimized for 200GB HDD)
-echo "Configuring Docker Log Rotation..."
 mkdir -p /etc/docker
 cat <<EOF > /etc/docker/daemon.json
 {
@@ -40,6 +38,10 @@ cat <<EOF > /etc/docker/daemon.json
 }
 EOF
 systemctl restart docker
+
+# 2.5 Add Weekly Cleanup Cron Job (Set and Forget)
+echo "Adding weekly maintenance schedule..."
+(crontab -l 2>/dev/null; echo "0 0 * * 0 docker system prune -af --volumes > /dev/null 2>&1") | crontab -
 
 # 3. Directory Preparation
 mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized}
@@ -62,7 +64,7 @@ export GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
 
 docker compose up -d || docker-compose up -d
 
-# 7. Post-Deployment Integration & Health Check
+# 7. Post-Deployment Integration
 echo -n "Waking up APIs (Waiting for migrations)..."
 TIMEOUT=0
 while ! curl -s --head --request GET http://localhost:8010 | grep "200 OK" > /dev/null; do
@@ -110,15 +112,13 @@ curl -s -X POST -H "Content-Type: application/json" \
 echo "------------------------------------------------"
 echo "visionStack is now LIVE!"
 echo "------------------------------------------------"
-echo "NetClaw (Host):  http://$HOST_IP:8000 | User: root / Pass: (System)"
-echo "Portainer:       http://$HOST_IP:8010 | User: admin / Pass: $MASTER_PWD"
-echo "Netbox:          http://$HOST_IP:8020 | User: admin / Pass: $MASTER_PWD"
-echo "Zabbix (Web):    http://$HOST_IP:8030 | User: Admin / Pass: zabbix"
-echo "Graylog:         http://$HOST_IP:8040 | User: admin / Pass: $MASTER_PWD"
-echo "Grafana:         http://$HOST_IP:8050 | User: admin / Pass: admin"
-echo "Prometheus:      http://$HOST_IP:8060 | No Auth"
-echo "ntopng:          http://$HOST_IP:8070 | User: admin / Pass: admin"
-echo "Oxidized:        http://$HOST_IP:8080 | No Auth"
+echo "NetClaw (Host):  http://$HOST_IP:8000"
+echo "Portainer:       http://$HOST_IP:8010 | admin / $MASTER_PWD"
+echo "Netbox:          http://$HOST_IP:8020 | admin / $MASTER_PWD"
+echo "Zabbix (Web):    http://$HOST_IP:8030 | Admin / zabbix"
+echo "Graylog:         http://$HOST_IP:8040 | admin / $MASTER_PWD"
+echo "Grafana:         http://$HOST_IP:8050 | admin / admin"
+echo "ntopng:          http://$HOST_IP:8070 | admin / admin"
 echo "------------------------------------------------"
 echo "INTEGRATION COMPLETE"
 echo "Netbox API Token: $NETBOX_TOKEN"
