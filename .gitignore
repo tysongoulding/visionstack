@@ -1,0 +1,9 @@
+# Ignore local data volumes
+data/
+
+# Ignore environment files containing passwords
+.env
+
+# Ignore temp files
+*.log
+*.tmp
