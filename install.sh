@@ -132,7 +132,7 @@ echo " Online!"
 NETBOX_TOKEN=$(openssl rand -hex 20)
 
 echo "Running Netbox Database Migrations..."
-docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate
+docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input
 
 echo -n "Waiting for Netbox Web UI (and Database) to come online..."
 TIMEOUT=0
