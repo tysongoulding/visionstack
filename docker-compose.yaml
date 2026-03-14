@@ -25,6 +25,14 @@ services:
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=${MASTER_PWD}
 
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    environment:
+      - discovery.type=single-node
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+
   graylog:
     image: graylog/graylog:6.0
     container_name: vision-graylog
