@@ -1,5 +1,5 @@
 #!/bin/bash
-# visionStack Installer v1.1
+# visionStack Installer v1.2
 set -e
 
 echo "Initializing visionStack Deployment..."
@@ -34,14 +34,18 @@ chmod -R 775 ./data
 read -p "Enter your Host IP Address: " HOST_IP
 read -p "Enter a Master Password for DBs: " MASTER_PWD
 
-# 5. Generate Graylog Hash (Crucial for login)
-# This converts your plain text password into the SHA256 hash Graylog requires
+# 5. Generate Graylog Secrets (Crucial for login & stability)
+# SHA256 Hash for the admin password
 export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
+# Salt secret for cookies/sessions (at least 16 chars)
+export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
 
 # 6. Launch the Stack
 echo "Deploying containers..."
+# These exports allow docker-compose.yaml to fill in the ${VARIABLES}
 export MASTER_PWD=$MASTER_PWD
 export HOST_IP=$HOST_IP
+
 docker compose up -d || docker-compose up -d
 
 # 7. Post-Deployment Integration
