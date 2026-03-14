@@ -1,17 +1,18 @@
 version: '3.9'
 
 services:
-  # Management & Observability
+  # --- Management ---
   portainer:
     image: portainer/portainer-ce:latest
     container_name: vision-portainer
-    ports: ["8010:9000", "9443:9443"]
-    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data"]
     restart: always
+    ports: ["8010:9000"]
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data"]
 
   netbox:
     image: netboxcommunity/netbox:latest
     container_name: vision-netbox
+    restart: always
     ports: ["8020:8080"]
     environment:
       - SECRET_KEY=vIsIoNsTaCkSeCrEt
@@ -31,8 +32,8 @@ services:
   zabbix-web:
     image: zabbix/zabbix-web-interface-pgsql:ubuntu-7.0-latest
     container_name: vision-zabbix-web
-    ports: ["8030:8080"]
     restart: always
+    ports: ["8030:8080"]
     environment:
       - ZBX_SERVER_HOST=zabbix-server
       - DB_SERVER_HOST=postgres
@@ -43,10 +44,10 @@ services:
   zabbix-agent:
     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
     container_name: vision-zabbix-agent
+    restart: always
     network_mode: host
     pid: host
     privileged: true
-    restart: always
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -60,6 +61,10 @@ services:
   graylog:
     image: graylog/graylog:6.0
     container_name: vision-graylog
+    restart: always
+    ports:
+      - "8040:9000"
+      - "12201:12201/udp"
     environment:
       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
@@ -69,22 +74,26 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: vision-grafana
+    restart: always
     ports: ["8050:3000"]
 
   prometheus:
     image: prom/prometheus:latest
     container_name: vision-prometheus
+    restart: always
     ports: ["8060:9090"]
 
   ntopng:
     image: ntop/ntopng:latest
     container_name: vision-ntopng
+    restart: always
     ports: ["8070:3000"]
     command: ["--local-networks", "192.168.0.0/16", "--interface", "tcp://nprobe:5556"]
 
   oxidized:
     image: oxidized/oxidized:latest
     container_name: vision-oxidized
+    restart: always
     ports: ["8080:8888"]
     volumes: ["./data/oxidized:/root/.config/oxidized"]
 
