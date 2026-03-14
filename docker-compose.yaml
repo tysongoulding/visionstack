@@ -60,10 +60,10 @@ services:
   graylog:
     image: graylog/graylog:6.0
     container_name: vision-graylog
-    ports: ["8040:9000", "12201:12201/udp"]
     environment:
-      - GRAYLOG_PASSWORD_SECRET=visionstacksecret12345
-      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+      - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+      - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
     depends_on: [mongodb, opensearch]
 
   grafana:
