@@ -43,7 +43,7 @@ sudo ./install.sh
 
 ### 🛠️ Architecture & Integration
 
-`visionStack` utilizes a hybrid deployment model. Heavy-duty network orchestration (**OpenClaw/Netclaw**) runs natively on the host for direct kernel access, while the management and observability tools are containerized for isolation and portability.
+`visionstack` utilizes a hybrid deployment model. Heavy-duty network orchestration (**OpenClaw/Netclaw**) runs natively on the host for direct kernel access, while the management and observability tools are containerized for isolation and portability.
 
 #### 🔗 Integrated Flow
 * **Inventory:** **Netbox** acts as the primary source of truth for **Zabbix** and **Oxidized**.
