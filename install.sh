@@ -199,6 +199,8 @@ curl -s --request POST 'http://localhost:8010/api/users/admin/init' \
 
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
+
+echo -n "Running Netbox Database Migrations (This takes ~2-6.5 minutes) "
 # Start background migration
 docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input > /dev/null 2>&1 &
 MIGRATE_PID=$!
@@ -213,7 +215,7 @@ while kill -0 $MIGRATE_PID 2>/dev/null; do
 done
 printf "\bDone!\n"
 
-echo -n "Waiting for Netbox Web UI to come online (This can take ~5min) "
+echo -n "Waiting for Netbox Web UI to come online (This can take ~6.5min) "
 TIMEOUT=0
 while true; do
     HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8020 || echo "000")
@@ -226,7 +228,7 @@ while true; do
         sleep 0.1
     done
     TIMEOUT=$((TIMEOUT + 1))
-    if [ $TIMEOUT -gt 120 ]; then
+    if [ $TIMEOUT -gt 180 ]; then
         echo -e "\bTimeout!"
         break
     fi
