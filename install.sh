@@ -90,12 +90,52 @@ export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
 
 # Save credentials for the admin to reference later
 cat <<EOF > ./visionstack_credentials.txt
-visionStack Auto-Generated Credentials
---------------------------------------
-Host IP (Detected): $HOST_IP
-Master Password: $MASTER_PWD
-Netbox Secret Key: $NETBOX_SECRET_KEY
+========================================
+ visionStack Auto-Generated Credentials
+========================================
 Deployment Date: $(date)
+Host IP (Detected): $HOST_IP
+
+CORE INFRASTRUCTURE:
+----------------------------------------
+Master Password: $MASTER_PWD
+
+APPLICATION LOGIN CREDENTIALS:
+----------------------------------------
+* Portainer (http://$HOST_IP:8010)
+  User: admin
+  Pass: $MASTER_PWD
+
+* Netbox (http://$HOST_IP:8020)
+  User: admin
+  Pass: $MASTER_PWD
+
+* Zabbix (http://$HOST_IP:8030)
+  User: Admin
+  Pass: zabbix
+
+* Graylog (http://$HOST_IP:8040)
+  User: admin
+  Pass: $MASTER_PWD
+
+* Grafana (http://$HOST_IP:8050)
+  User: admin
+  Pass: admin
+
+* Prometheus (http://$HOST_IP:8060)
+  (No authentication by default)
+
+* ntopng (http://$HOST_IP:8070)
+  User: admin
+  Pass: admin
+
+* Oxidized (http://$HOST_IP:8080)
+  (No authentication by default)
+
+SYSTEM SECRETS (Do not lose these!):
+----------------------------------------
+Netbox Secret Key: $NETBOX_SECRET_KEY
+Graylog Secret: $GRAYLOG_PASSWORD_SECRET
 EOF
 chmod 600 ./visionstack_credentials.txt
 echo "Credentials saved to ./visionstack_credentials.txt (Keep this safe!)"
