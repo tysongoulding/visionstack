@@ -51,6 +51,7 @@ services:
     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
     container_name: visionstack-zabbix-agent
     restart: always
+    user: root
     pid: host
     privileged: true
     volumes:
@@ -59,8 +60,8 @@ services:
       - /:/host/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - ZBX_HOSTNAME=visionStack-Host
-      - ZBX_SERVER_HOST=0.0.0.0/0
+      - ZBX_HOSTNAME="Zabbix server"
+      - ZBX_SERVER_HOST=visionstack-zabbix-server
       - ZBX_SERVER_ACTIVE=visionstack-zabbix-server
 
   # --- Observability Tier ---
