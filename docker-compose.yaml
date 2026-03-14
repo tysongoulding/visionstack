@@ -51,7 +51,9 @@ services:
     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
     container_name: visionstack-zabbix-agent
     restart: always
-    user: root
+    user: zabbix
+    group_add:
+      - root
     pid: host
     privileged: true
     volumes:
@@ -63,7 +65,6 @@ services:
       - ZBX_HOSTNAME=Zabbix server
       - ZBX_SERVER_HOST=visionstack-zabbix-server
       - ZBX_SERVER_ACTIVE=visionstack-zabbix-server
-      - ZBX_ALLOWROOT=1
 
   # --- Observability Tier ---
   graylog:

@@ -1,0 +1,1131 @@
+commit 7496756afd3f9077b494dca76089b726ebec1516
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Sat Mar 14 11:21:37 2026 -0600
+
+    Fix Zabbix Agent 2 Docker permissions and Hostname mapping
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 3bbf6a9..b3f403d 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -51,6 +51,7 @@ services:
+     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
+     container_name: visionstack-zabbix-agent
+     restart: always
++    user: root
+     pid: host
+     privileged: true
+     volumes:
+@@ -59,8 +60,8 @@ services:
+       - /:/host/rootfs:ro
+       - /var/run/docker.sock:/var/run/docker.sock
+     environment:
+-      - ZBX_HOSTNAME=visionStack-Host
+-      - ZBX_SERVER_HOST=0.0.0.0/0
++      - ZBX_HOSTNAME="Zabbix server"
++      - ZBX_SERVER_HOST=visionstack-zabbix-server
+       - ZBX_SERVER_ACTIVE=visionstack-zabbix-server
+ 
+   # --- Observability Tier ---
+
+commit da261ee26418bfedb625a461a7f7e4ce77246f95
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Sat Mar 14 11:00:12 2026 -0600
+
+    Fix ZBX_SERVER_HOST IP authorization
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 442a4ec..3bbf6a9 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -60,7 +60,7 @@ services:
+       - /var/run/docker.sock:/var/run/docker.sock
+     environment:
+       - ZBX_HOSTNAME=visionStack-Host
+-      - ZBX_SERVER_HOST=visionstack-zabbix-server
++      - ZBX_SERVER_HOST=0.0.0.0/0
+       - ZBX_SERVER_ACTIVE=visionstack-zabbix-server
+ 
+   # --- Observability Tier ---
+
+commit b06bc1b35afba83c448996e7a5d9967f9eed7fca
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Sat Mar 14 03:06:49 2026 -0600
+
+    Remove API_TOKEN_PEPPERS configuration from the deployment scripts
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index fbb82bf..442a4ec 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -14,7 +14,6 @@ services:
+     ports: [ "8020:8080" ]
+     environment:
+       - SECRET_KEY=${NETBOX_SECRET_KEY}
+-      - API_TOKEN_PEPPER_1=${API_TOKEN_PEPPERS}
+       - DB_HOST=visionstack-postgres-netbox
+       - DB_NAME=netbox
+       - DB_USER=netbox
+
+commit b8f617f687ae61bb501bc01c9822059871b5b050
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Sat Mar 14 03:02:05 2026 -0600
+
+    Fix API_TOKEN_PEPPER_1 environment variable mapping for Netbox
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 24000e2..fbb82bf 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -14,7 +14,7 @@ services:
+     ports: [ "8020:8080" ]
+     environment:
+       - SECRET_KEY=${NETBOX_SECRET_KEY}
+-      - API_TOKEN_PEPPERS=${API_TOKEN_PEPPERS}
++      - API_TOKEN_PEPPER_1=${API_TOKEN_PEPPERS}
+       - DB_HOST=visionstack-postgres-netbox
+       - DB_NAME=netbox
+       - DB_USER=netbox
+
+commit 8e9c3a5cfc07619b36c726e178845cbc05695afc
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Sat Mar 14 02:28:04 2026 -0600
+
+    fix(netbox): inject API_TOKEN_PEPPERS environment variable into netbox container for v4+ token hashing compatibility
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 442a4ec..24000e2 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -14,6 +14,7 @@ services:
+     ports: [ "8020:8080" ]
+     environment:
+       - SECRET_KEY=${NETBOX_SECRET_KEY}
++      - API_TOKEN_PEPPERS=${API_TOKEN_PEPPERS}
+       - DB_HOST=visionstack-postgres-netbox
+       - DB_NAME=netbox
+       - DB_USER=netbox
+
+commit e25194e9266ce7a512e6e794b19fc7fff34c0c7b
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Sat Mar 14 01:16:41 2026 -0600
+
+    feat(integrations): add zabbix web gui trackers, add host server to netbox, dynamically link zabbix API payloads, and mass-inject cluster databases into grafana
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index abcd3c6..442a4ec 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -86,6 +86,8 @@ services:
+     container_name: visionstack-grafana
+     restart: always
+     ports: [ "8050:3000" ]
++    environment:
++      - GF_INSTALL_PLUGINS=alexanderzobnin-zabbix-app,redis-datasource
+ 
+   prometheus:
+     image: prom/prometheus:latest
+
+commit 9bb1df5f42a078a911357d3a6338e3ad38cd5f23
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Sat Mar 14 00:58:07 2026 -0600
+
+    fix(docker): enable ZBX_STARTCONNECTORS=1 in zabbix-server and set zabbix-agent to run as root to fix docker socket permission denied errors
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 573eab6..abcd3c6 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -31,6 +31,7 @@ services:
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+       - POSTGRES_DB=zabbix
++      - ZBX_STARTCONNECTORS=1
+     depends_on: [ postgres-zabbix ]
+ 
+   zabbix-web:
+
+commit e1da0485dada9ec754516fa4a0f04cae67824fe8
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 23:45:15 2026 -0600
+
+    feat(docker): upgrade graylog to version 7.0 now that proxmox passthrough supports modern mongodb requirements
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 342b9e3..573eab6 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -64,7 +64,7 @@ services:
+ 
+   # --- Observability Tier ---
+   graylog:
+-    image: graylog/graylog:6.0
++    image: graylog/graylog:7.0
+     container_name: visionstack-graylog
+     restart: always
+     ports:
+
+commit 504824b3bd776c5b6c1b2c6b7f5d446af18b3971
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 23:29:54 2026 -0600
+
+    fix(docker): add ZBX_SERVER_ACTIVE to zabbix-agent so it can push active checks and auto-register with the bridged server
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 314326c..342b9e3 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -60,6 +60,7 @@ services:
+     environment:
+       - ZBX_HOSTNAME=visionStack-Host
+       - ZBX_SERVER_HOST=visionstack-zabbix-server
++      - ZBX_SERVER_ACTIVE=visionstack-zabbix-server
+ 
+   # --- Observability Tier ---
+   graylog:
+
+commit 4cc072e0d91d209ea90d7d95651197ae9f46d489
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 23:04:57 2026 -0600
+
+    feat(docker): upgrade mongodb to 7.0 and graylog to 6.0 now that proxmox host CPU passthrough enables AVX
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 3a16c06..314326c 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -63,7 +63,7 @@ services:
+ 
+   # --- Observability Tier ---
+   graylog:
+-    image: graylog/graylog:5.2
++    image: graylog/graylog:6.0
+     container_name: visionstack-graylog
+     restart: always
+     ports:
+@@ -129,7 +129,7 @@ services:
+       - ./data/postgres-zabbix:/var/lib/postgresql/data
+ 
+   mongodb:
+-    image: mongo:4.4
++    image: mongo:7.0
+     container_name: visionstack-mongodb
+     restart: always
+     volumes:
+
+commit abadea66da49fe7336e98aa542208d159bd190c6
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 23:01:51 2026 -0600
+
+    fix(docker): drop zabbix-agent host networking so it can reach server, downgrade graylog to 5.2 to support mongodb 4.4
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 8665d9f..3a16c06 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -50,7 +50,6 @@ services:
+     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
+     container_name: visionstack-zabbix-agent
+     restart: always
+-    network_mode: host
+     pid: host
+     privileged: true
+     volumes:
+@@ -60,11 +59,11 @@ services:
+       - /var/run/docker.sock:/var/run/docker.sock
+     environment:
+       - ZBX_HOSTNAME=visionStack-Host
+-      - ZBX_SERVER_HOST=127.0.0.1
++      - ZBX_SERVER_HOST=visionstack-zabbix-server
+ 
+   # --- Observability Tier ---
+   graylog:
+-    image: graylog/graylog:6.0
++    image: graylog/graylog:5.2
+     container_name: visionstack-graylog
+     restart: always
+     ports:
+
+commit 35d35ef91dfd4cb41a0dfc99c2bf9af5a085a35b
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 22:52:02 2026 -0600
+
+    feat(docker): split postgres instances and explicitly name docker network visionstack-network
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 9f3eb97..8665d9f 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -14,9 +14,12 @@ services:
+     ports: [ "8020:8080" ]
+     environment:
+       - SECRET_KEY=${NETBOX_SECRET_KEY}
+-      - DB_HOST=visionstack-postgres
++      - DB_HOST=visionstack-postgres-netbox
++      - DB_NAME=netbox
++      - DB_USER=netbox
++      - DB_PASSWORD=${MASTER_PWD}
+       - REDIS_HOST=visionstack-redis
+-    depends_on: [ postgres, redis ]
++    depends_on: [ postgres-netbox, redis ]
+ 
+   # --- Zabbix Tier ---
+   zabbix-server:
+@@ -24,10 +27,11 @@ services:
+     container_name: visionstack-zabbix-server
+     restart: always
+     environment:
+-      - DB_SERVER_HOST=visionstack-postgres
++      - DB_SERVER_HOST=visionstack-postgres-zabbix
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+-    depends_on: [ postgres ]
++      - POSTGRES_DB=zabbix
++    depends_on: [ postgres-zabbix ]
+ 
+   zabbix-web:
+     image: zabbix/zabbix-web-nginx-pgsql:ubuntu-7.0-latest
+@@ -36,10 +40,11 @@ services:
+     ports: [ "8030:8080" ]
+     environment:
+       - ZBX_SERVER_HOST=visionstack-zabbix-server
+-      - DB_SERVER_HOST=visionstack-postgres
++      - DB_SERVER_HOST=visionstack-postgres-zabbix
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+-    depends_on: [ zabbix-server ]
++      - POSTGRES_DB=zabbix
++    depends_on: [ zabbix-server, postgres-zabbix ]
+ 
+   zabbix-agent:
+     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
+@@ -102,16 +107,27 @@ services:
+     volumes: [ "./data/oxidized:/root/.config/oxidized" ]
+ 
+   # --- Infrastructure Backend ---
+-  postgres:
++  postgres-netbox:
+     image: postgres:15-alpine
+-    container_name: visionstack-postgres
++    container_name: visionstack-postgres-netbox
+     restart: always
+     environment:
+-      - POSTGRES_USER=postgres
++      - POSTGRES_DB=netbox
++      - POSTGRES_USER=netbox
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+     volumes:
+-      - ./data/postgres/data:/var/lib/postgresql/data
+-      - ./data/postgres/init-postgres.sh:/docker-entrypoint-initdb.d/init-postgres.sh
++      - ./data/postgres-netbox:/var/lib/postgresql/data
++
++  postgres-zabbix:
++    image: postgres:15-alpine
++    container_name: visionstack-postgres-zabbix
++    restart: always
++    environment:
++      - POSTGRES_DB=zabbix
++      - POSTGRES_USER=zabbix
++      - POSTGRES_PASSWORD=${MASTER_PWD}
++    volumes:
++      - ./data/postgres-zabbix:/var/lib/postgresql/data
+ 
+   mongodb:
+     image: mongo:4.4
+@@ -136,3 +152,7 @@ services:
+     image: redis:7-alpine
+     container_name: visionstack-redis
+     restart: always
++
++networks:
++  default:
++    name: visionstack-network
+
+commit 5635aca5a69d60f812b4d634c5253206b8e1bf60
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 22:45:40 2026 -0600
+
+    fix(docker): downgrade mongodb to 4.4 to support CPUs without AVX instructions
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index fc6952e..9f3eb97 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -114,7 +114,7 @@ services:
+       - ./data/postgres/init-postgres.sh:/docker-entrypoint-initdb.d/init-postgres.sh
+ 
+   mongodb:
+-    image: mongo:7.0
++    image: mongo:4.4
+     container_name: visionstack-mongodb
+     restart: always
+     volumes:
+
+commit 761f04cb535dfbc34e6acdd93759ae1f47c592f8
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 22:43:25 2026 -0600
+
+    fix(docker): explicitly create postgres root user to ensure database initialization script permissions
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index adbab6b..fc6952e 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -107,6 +107,7 @@ services:
+     container_name: visionstack-postgres
+     restart: always
+     environment:
++      - POSTGRES_USER=postgres
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+     volumes:
+       - ./data/postgres/data:/var/lib/postgresql/data
+
+commit cbf63727c47d5a93b6359734783815f8301a8bef
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 22:35:18 2026 -0600
+
+    fix(docker): auto-create zabbix and netbox databases on boot and map volumes for persistence
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 9fb975a..adbab6b 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -108,11 +108,16 @@ services:
+     restart: always
+     environment:
+       - POSTGRES_PASSWORD=${MASTER_PWD}
++    volumes:
++      - ./data/postgres/data:/var/lib/postgresql/data
++      - ./data/postgres/init-postgres.sh:/docker-entrypoint-initdb.d/init-postgres.sh
+ 
+   mongodb:
+     image: mongo:7.0
+     container_name: visionstack-mongodb
+     restart: always
++    volumes:
++      - ./data/mongodb:/data/db
+ 
+   opensearch:
+     image: opensearchproject/opensearch:2.15.0
+@@ -123,6 +128,8 @@ services:
+       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+       - DISABLE_INSTALL_DEMO_CONFIG=true
+       - DISABLE_SECURITY_PLUGIN=true
++    volumes:
++      - ./data/opensearch:/usr/share/opensearch/data
+ 
+   redis:
+     image: redis:7-alpine
+
+commit 3a393331478b623dcdf03b52a14b6c72a08b8c0c
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 22:27:34 2026 -0600
+
+    fix(docker): update internal connection strings to match new visionstack- backend container names
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index bd97b41..9fb975a 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -14,6 +14,8 @@ services:
+     ports: [ "8020:8080" ]
+     environment:
+       - SECRET_KEY=${NETBOX_SECRET_KEY}
++      - DB_HOST=visionstack-postgres
++      - REDIS_HOST=visionstack-redis
+     depends_on: [ postgres, redis ]
+ 
+   # --- Zabbix Tier ---
+@@ -22,7 +24,7 @@ services:
+     container_name: visionstack-zabbix-server
+     restart: always
+     environment:
+-      - DB_SERVER_HOST=postgres
++      - DB_SERVER_HOST=visionstack-postgres
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+     depends_on: [ postgres ]
+@@ -33,8 +35,8 @@ services:
+     restart: always
+     ports: [ "8030:8080" ]
+     environment:
+-      - ZBX_SERVER_HOST=zabbix-server
+-      - DB_SERVER_HOST=postgres
++      - ZBX_SERVER_HOST=visionstack-zabbix-server
++      - DB_SERVER_HOST=visionstack-postgres
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+     depends_on: [ zabbix-server ]
+@@ -69,6 +71,8 @@ services:
+       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+       - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
++      - GRAYLOG_MONGODB_URI=mongodb://visionstack-mongodb:27017/graylog
++      - GRAYLOG_ELASTICSEARCH_HOSTS=http://visionstack-opensearch:9200
+     depends_on: [ mongodb, opensearch ]
+ 
+   grafana:
+
+commit 21b822b9454e751af39f148a4291d77a9f3130ef
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 22:08:07 2026 -0600
+
+    fix(install): generate compliant 64-character secret key for netbox
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index bdfad78..bd97b41 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -13,7 +13,7 @@ services:
+     restart: always
+     ports: [ "8020:8080" ]
+     environment:
+-      - SECRET_KEY=vIsIoNsTaCkSeCrEt
++      - SECRET_KEY=${NETBOX_SECRET_KEY}
+     depends_on: [ postgres, redis ]
+ 
+   # --- Zabbix Tier ---
+
+commit 55ae2b864ed79a6703a898beaa53b7d91dbe1558
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 22:07:24 2026 -0600
+
+    fix(docker): explicitly name backend containers to avoid default directory naming conventions
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 14a084d..bdfad78 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -100,12 +100,14 @@ services:
+   # --- Infrastructure Backend ---
+   postgres:
+     image: postgres:15-alpine
++    container_name: visionstack-postgres
+     restart: always
+     environment:
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+ 
+   mongodb:
+     image: mongo:7.0
++    container_name: visionstack-mongodb
+     restart: always
+ 
+   opensearch:
+@@ -120,4 +122,5 @@ services:
+ 
+   redis:
+     image: redis:7-alpine
++    container_name: visionstack-redis
+     restart: always
+
+commit 6206ca72345a8a13dee0dd37eff3f3a3ff5b0448
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 22:04:33 2026 -0600
+
+    fix(install): update integrated container hostnames to match new docker-compose names
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index cfb2a05..14a084d 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -2,46 +2,46 @@ services:
+   # --- Management ---
+   portainer:
+     image: portainer/portainer-ce:latest
+-    container_name: vision-portainer
++    container_name: visionstack-portainer
+     restart: always
+-    ports: ["8010:9000"]
+-    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data"]
++    ports: [ "8010:9000" ]
++    volumes: [ "/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data" ]
+ 
+   netbox:
+     image: netboxcommunity/netbox:latest
+-    container_name: vision-netbox
++    container_name: visionstack-netbox
+     restart: always
+-    ports: ["8020:8080"]
++    ports: [ "8020:8080" ]
+     environment:
+       - SECRET_KEY=vIsIoNsTaCkSeCrEt
+-    depends_on: [postgres, redis]
++    depends_on: [ postgres, redis ]
+ 
+   # --- Zabbix Tier ---
+   zabbix-server:
+     image: zabbix/zabbix-server-pgsql:ubuntu-7.0-latest
+-    container_name: vision-zabbix-server
++    container_name: visionstack-zabbix-server
+     restart: always
+     environment:
+       - DB_SERVER_HOST=postgres
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+-    depends_on: [postgres]
++    depends_on: [ postgres ]
+ 
+   zabbix-web:
+     image: zabbix/zabbix-web-nginx-pgsql:ubuntu-7.0-latest
+-    container_name: vision-zabbix-web
++    container_name: visionstack-zabbix-web
+     restart: always
+-    ports: ["8030:8080"]
++    ports: [ "8030:8080" ]
+     environment:
+       - ZBX_SERVER_HOST=zabbix-server
+       - DB_SERVER_HOST=postgres
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+-    depends_on: [zabbix-server]
++    depends_on: [ zabbix-server ]
+ 
+   zabbix-agent:
+     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
+-    container_name: vision-zabbix-agent
++    container_name: visionstack-zabbix-agent
+     restart: always
+     network_mode: host
+     pid: host
+@@ -58,7 +58,7 @@ services:
+   # --- Observability Tier ---
+   graylog:
+     image: graylog/graylog:6.0
+-    container_name: vision-graylog
++    container_name: visionstack-graylog
+     restart: always
+     ports:
+       - "8040:9000"
+@@ -69,33 +69,33 @@ services:
+       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+       - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+-    depends_on: [mongodb, opensearch]
++    depends_on: [ mongodb, opensearch ]
+ 
+   grafana:
+     image: grafana/grafana:latest
+-    container_name: vision-grafana
++    container_name: visionstack-grafana
+     restart: always
+-    ports: ["8050:3000"]
++    ports: [ "8050:3000" ]
+ 
+   prometheus:
+     image: prom/prometheus:latest
+-    container_name: vision-prometheus
++    container_name: visionstack-prometheus
+     restart: always
+-    ports: ["8060:9090"]
++    ports: [ "8060:9090" ]
+ 
+   ntopng:
+     image: ntop/ntopng:latest
+-    container_name: vision-ntopng
++    container_name: visionstack-ntopng
+     restart: always
+-    ports: ["8070:3000"]
+-    command: ["--local-networks", "192.168.0.0/16", "--interface", "tcp://nprobe:5556"]
++    ports: [ "8070:3000" ]
++    command: [ "--local-networks", "192.168.0.0/16", "--interface", "tcp://nprobe:5556" ]
+ 
+   oxidized:
+     image: oxidized/oxidized:latest
+-    container_name: vision-oxidized
++    container_name: visionstack-oxidized
+     restart: always
+-    ports: ["8080:8888"]
+-    volumes: ["./data/oxidized:/root/.config/oxidized"]
++    ports: [ "8080:8888" ]
++    volumes: [ "./data/oxidized:/root/.config/oxidized" ]
+ 
+   # --- Infrastructure Backend ---
+   postgres:
+@@ -110,7 +110,7 @@ services:
+ 
+   opensearch:
+     image: opensearchproject/opensearch:2.15.0
+-    container_name: vision-opensearch
++    container_name: visionstack-opensearch
+     restart: always
+     environment:
+       - discovery.type=single-node
+
+commit a98d050864795154974c2a66c0ae7ea63bbfbed1
+Author: Tyson Goulding <tyson.goulding@optconnect.com>
+Date:   Fri Mar 13 21:51:51 2026 -0600
+
+    fix(install): auto-generate credentials, detect ip, correct zabbix web image, and update compose fallback logic
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index f7cd40d..cfb2a05 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -1,5 +1,3 @@
+-version: '3.9'
+-
+ services:
+   # --- Management ---
+   portainer:
+@@ -30,7 +28,7 @@ services:
+     depends_on: [postgres]
+ 
+   zabbix-web:
+-    image: zabbix/zabbix-web-interface-pgsql:ubuntu-7.0-latest
++    image: zabbix/zabbix-web-nginx-pgsql:ubuntu-7.0-latest
+     container_name: vision-zabbix-web
+     restart: always
+     ports: ["8030:8080"]
+
+commit 10261d897fdb5815f22fc0e13c4761e2a4708acf
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 21:39:27 2026 -0600
+
+    Remove Prometheus command settings
+    
+    Removed Prometheus command configuration from docker-compose.
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index fea1a34..f7cd40d 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -79,17 +79,12 @@ services:
+     restart: always
+     ports: ["8050:3000"]
+ 
+-prometheus:
++  prometheus:
+     image: prom/prometheus:latest
+     container_name: vision-prometheus
+     restart: always
+     ports: ["8060:9090"]
+-    command:
+-      - '--config.file=/etc/prometheus/prometheus.yml'
+-      - '--storage.tsdb.path=/prometheus'
+-      - '--storage.tsdb.retention.time=30d'
+-      - '--storage.tsdb.retention.size=50GB'
+-      
++
+   ntopng:
+     image: ntop/ntopng:latest
+     container_name: vision-ntopng
+
+commit 0fc6e7b8656c593282745fb0a3dcb975bcee9459
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 21:28:59 2026 -0600
+
+    Add UDP and TCP ports for Graylog
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 5abd023..fea1a34 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -65,6 +65,8 @@ services:
+     ports:
+       - "8040:9000"
+       - "12201:12201/udp"
++      - "514:1514/udp"
++      - "514:1514/tcp"
+     environment:
+       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+
+commit 6e64cfa174d876888779d36a4629182279af2026
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 21:18:57 2026 -0600
+
+    Add Prometheus command options in docker-compose
+    
+    Added Prometheus configuration options for storage and retention.
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 9e9b0ec..5abd023 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -77,12 +77,17 @@ services:
+     restart: always
+     ports: ["8050:3000"]
+ 
+-  prometheus:
++prometheus:
+     image: prom/prometheus:latest
+     container_name: vision-prometheus
+     restart: always
+     ports: ["8060:9090"]
+-
++    command:
++      - '--config.file=/etc/prometheus/prometheus.yml'
++      - '--storage.tsdb.path=/prometheus'
++      - '--storage.tsdb.retention.time=30d'
++      - '--storage.tsdb.retention.size=50GB'
++      
+   ntopng:
+     image: ntop/ntopng:latest
+     container_name: vision-ntopng
+
+commit 0556c1eda23ebd714ca48bffee48e5a482e0022c
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 21:14:18 2026 -0600
+
+    Update docker-compose.yaml
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 982e602..9e9b0ec 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -1,17 +1,18 @@
+ version: '3.9'
+ 
+ services:
+-  # Management & Observability
++  # --- Management ---
+   portainer:
+     image: portainer/portainer-ce:latest
+     container_name: vision-portainer
+-    ports: ["8010:9000", "9443:9443"]
+-    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data"]
+     restart: always
++    ports: ["8010:9000"]
++    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data"]
+ 
+   netbox:
+     image: netboxcommunity/netbox:latest
+     container_name: vision-netbox
++    restart: always
+     ports: ["8020:8080"]
+     environment:
+       - SECRET_KEY=vIsIoNsTaCkSeCrEt
+@@ -31,8 +32,8 @@ services:
+   zabbix-web:
+     image: zabbix/zabbix-web-interface-pgsql:ubuntu-7.0-latest
+     container_name: vision-zabbix-web
+-    ports: ["8030:8080"]
+     restart: always
++    ports: ["8030:8080"]
+     environment:
+       - ZBX_SERVER_HOST=zabbix-server
+       - DB_SERVER_HOST=postgres
+@@ -43,10 +44,10 @@ services:
+   zabbix-agent:
+     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
+     container_name: vision-zabbix-agent
++    restart: always
+     network_mode: host
+     pid: host
+     privileged: true
+-    restart: always
+     volumes:
+       - /proc:/host/proc:ro
+       - /sys:/host/sys:ro
+@@ -60,6 +61,10 @@ services:
+   graylog:
+     image: graylog/graylog:6.0
+     container_name: vision-graylog
++    restart: always
++    ports:
++      - "8040:9000"
++      - "12201:12201/udp"
+     environment:
+       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+@@ -69,22 +74,26 @@ services:
+   grafana:
+     image: grafana/grafana:latest
+     container_name: vision-grafana
++    restart: always
+     ports: ["8050:3000"]
+ 
+   prometheus:
+     image: prom/prometheus:latest
+     container_name: vision-prometheus
++    restart: always
+     ports: ["8060:9090"]
+ 
+   ntopng:
+     image: ntop/ntopng:latest
+     container_name: vision-ntopng
++    restart: always
+     ports: ["8070:3000"]
+     command: ["--local-networks", "192.168.0.0/16", "--interface", "tcp://nprobe:5556"]
+ 
+   oxidized:
+     image: oxidized/oxidized:latest
+     container_name: vision-oxidized
++    restart: always
+     ports: ["8080:8888"]
+     volumes: ["./data/oxidized:/root/.config/oxidized"]
+ 
+
+commit b1f94010a6bb923f39e258293b058d7c7d2a1df4
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 21:11:19 2026 -0600
+
+    Update docker-compose.yaml
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 5781fe1..982e602 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -60,10 +60,10 @@ services:
+   graylog:
+     image: graylog/graylog:6.0
+     container_name: vision-graylog
+-    ports: ["8040:9000", "12201:12201/udp"]
+     environment:
+-      - GRAYLOG_PASSWORD_SECRET=visionstacksecret12345
+-      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
++      - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
++      - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
++      - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+     depends_on: [mongodb, opensearch]
+ 
+   grafana:
+
+commit d4db03fb37a24a2c4c5ad2f7e34fed3cd6e9e02c
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 21:07:19 2026 -0600
+
+    Upgrade Docker Compose version and add Zabbix services
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index c4e1d3d..5781fe1 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -1,4 +1,4 @@
+-version: '3.8'
++version: '3.9'
+ 
+ services:
+   # Management & Observability
+@@ -13,18 +13,50 @@ services:
+     image: netboxcommunity/netbox:latest
+     container_name: vision-netbox
+     ports: ["8020:8080"]
+-    environment: [SECRET_KEY=vIsIoNsTaCkSeCrEt]
++    environment:
++      - SECRET_KEY=vIsIoNsTaCkSeCrEt
+     depends_on: [postgres, redis]
+ 
++  # --- Zabbix Tier ---
+   zabbix-server:
+     image: zabbix/zabbix-server-pgsql:ubuntu-7.0-latest
+-    container_name: vision-zabbix
+-    ports: ["8030:10051"]
++    container_name: vision-zabbix-server
++    restart: always
++    environment:
++      - DB_SERVER_HOST=postgres
++      - POSTGRES_USER=zabbix
++      - POSTGRES_PASSWORD=${MASTER_PWD}
++    depends_on: [postgres]
++
++  zabbix-web:
++    image: zabbix/zabbix-web-interface-pgsql:ubuntu-7.0-latest
++    container_name: vision-zabbix-web
++    ports: ["8030:8080"]
++    restart: always
+     environment:
++      - ZBX_SERVER_HOST=zabbix-server
+       - DB_SERVER_HOST=postgres
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
++    depends_on: [zabbix-server]
++
++  zabbix-agent:
++    image: zabbix/zabbix-agent2:ubuntu-7.0-latest
++    container_name: vision-zabbix-agent
++    network_mode: host
++    pid: host
++    privileged: true
++    restart: always
++    volumes:
++      - /proc:/host/proc:ro
++      - /sys:/host/sys:ro
++      - /:/host/rootfs:ro
++      - /var/run/docker.sock:/var/run/docker.sock
++    environment:
++      - ZBX_HOSTNAME=visionStack-Host
++      - ZBX_SERVER_HOST=127.0.0.1
+ 
++  # --- Observability Tier ---
+   graylog:
+     image: graylog/graylog:6.0
+     container_name: vision-graylog
+@@ -56,18 +88,27 @@ services:
+     ports: ["8080:8888"]
+     volumes: ["./data/oxidized:/root/.config/oxidized"]
+ 
+-  # Infrastructure Backend
++  # --- Infrastructure Backend ---
+   postgres:
+     image: postgres:15-alpine
+-    environment: [POSTGRES_PASSWORD=${MASTER_PWD}]
++    restart: always
++    environment:
++      - POSTGRES_PASSWORD=${MASTER_PWD}
++
+   mongodb:
+     image: mongo:7.0
++    restart: always
++
+   opensearch:
+     image: opensearchproject/opensearch:2.15.0
++    container_name: vision-opensearch
++    restart: always
+     environment:
+       - discovery.type=single-node
+       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+       - DISABLE_INSTALL_DEMO_CONFIG=true
+       - DISABLE_SECURITY_PLUGIN=true
++
+   redis:
+     image: redis:7-alpine
++    restart: always
+
+commit 66057a4d54e06043511a61129193ccc68441f32c
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 21:05:11 2026 -0600
+
+    Refactor opensearch service environment variables
+    
+    Reformatted opensearch environment variables for clarity.
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index 5ad14dc..c4e1d3d 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -25,14 +25,6 @@ services:
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+ 
+-  opensearch:
+-    image: opensearchproject/opensearch:2.15.0
+-    environment:
+-      - discovery.type=single-node
+-      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+-      - DISABLE_INSTALL_DEMO_CONFIG=true
+-      - DISABLE_SECURITY_PLUGIN=true
+-
+   graylog:
+     image: graylog/graylog:6.0
+     container_name: vision-graylog
+@@ -72,6 +64,10 @@ services:
+     image: mongo:7.0
+   opensearch:
+     image: opensearchproject/opensearch:2.15.0
+-    environment: ["discovery.type=single-node", "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m", "DISABLE_INSTALL_DEMO_CONFIG=true", "DISABLE_SECURITY_PLUGIN=true"]
++    environment:
++      - discovery.type=single-node
++      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
++      - DISABLE_INSTALL_DEMO_CONFIG=true
++      - DISABLE_SECURITY_PLUGIN=true
+   redis:
+     image: redis:7-alpine
+
+commit 57f146395c3e853ec312611e14b0ba7a8b421791
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 21:04:21 2026 -0600
+
+    Add OpenSearch service to docker-compose
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+index c44a149..5ad14dc 100644
+--- a/docker-compose.yaml
++++ b/docker-compose.yaml
+@@ -25,6 +25,14 @@ services:
+       - POSTGRES_USER=zabbix
+       - POSTGRES_PASSWORD=${MASTER_PWD}
+ 
++  opensearch:
++    image: opensearchproject/opensearch:2.15.0
++    environment:
++      - discovery.type=single-node
++      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
++      - DISABLE_INSTALL_DEMO_CONFIG=true
++      - DISABLE_SECURITY_PLUGIN=true
++
+   graylog:
+     image: graylog/graylog:6.0
+     container_name: vision-graylog
+
+commit 42a2964ababccebf6015d54e1c7bde01a1ccad19
+Author: Xerotier <111467998+tysongoulding@users.noreply.github.com>
+Date:   Fri Mar 13 20:30:06 2026 -0600
+
+    Add docker-compose configuration for multiple services
+
+diff --git a/docker-compose.yaml b/docker-compose.yaml
+new file mode 100644
+index 0000000..c44a149
+--- /dev/null
++++ b/docker-compose.yaml
+@@ -0,0 +1,69 @@
++version: '3.8'
++
++services:
++  # Management & Observability
++  portainer:
++    image: portainer/portainer-ce:latest
++    container_name: vision-portainer
++    ports: ["8010:9000", "9443:9443"]
++    volumes: ["/var/run/docker.sock:/var/run/docker.sock", "./data/portainer:/data"]
++    restart: always
++
++  netbox:
++    image: netboxcommunity/netbox:latest
++    container_name: vision-netbox
++    ports: ["8020:8080"]
++    environment: [SECRET_KEY=vIsIoNsTaCkSeCrEt]
++    depends_on: [postgres, redis]
++
++  zabbix-server:
++    image: zabbix/zabbix-server-pgsql:ubuntu-7.0-latest
++    container_name: vision-zabbix
++    ports: ["8030:10051"]
++    environment:
++      - DB_SERVER_HOST=postgres
++      - POSTGRES_USER=zabbix
++      - POSTGRES_PASSWORD=${MASTER_PWD}
++
++  graylog:
++    image: graylog/graylog:6.0
++    container_name: vision-graylog
++    ports: ["8040:9000", "12201:12201/udp"]
++    environment:
++      - GRAYLOG_PASSWORD_SECRET=visionstacksecret12345
++      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
++    depends_on: [mongodb, opensearch]
++
++  grafana:
++    image: grafana/grafana:latest
++    container_name: vision-grafana
++    ports: ["8050:3000"]
++
++  prometheus:
++    image: prom/prometheus:latest
++    container_name: vision-prometheus
++    ports: ["8060:9090"]
++
++  ntopng:
++    image: ntop/ntopng:latest
++    container_name: vision-ntopng
++    ports: ["8070:3000"]
++    command: ["--local-networks", "192.168.0.0/16", "--interface", "tcp://nprobe:5556"]
++
++  oxidized:
++    image: oxidized/oxidized:latest
++    container_name: vision-oxidized
++    ports: ["8080:8888"]
++    volumes: ["./data/oxidized:/root/.config/oxidized"]
++
++  # Infrastructure Backend
++  postgres:
++    image: postgres:15-alpine
++    environment: [POSTGRES_PASSWORD=${MASTER_PWD}]
++  mongodb:
++    image: mongo:7.0
++  opensearch:
++    image: opensearchproject/opensearch:2.15.0
++    environment: ["discovery.type=single-node", "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m", "DISABLE_INSTALL_DEMO_CONFIG=true", "DISABLE_SECURITY_PLUGIN=true"]
++  redis:
++    image: redis:7-alpine
