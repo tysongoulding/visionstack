@@ -204,9 +204,15 @@ ZBX_TOKEN=$(curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
   --data '{"jsonrpc": "2.0", "method": "user.login", "params": {"username": "Admin", "password": "zabbix"}, "id": 1}' | sed -n 's/.*"result":"\([^"]*\)".*/\1/p')
 
 if [ -n "$ZBX_TOKEN" ]; then
+    # 1. Update default agent DNS interface
     curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
       --header 'Content-Type: application/json' \
       --data "{\"jsonrpc\": \"2.0\", \"method\": \"hostinterface.update\", \"params\": {\"interfaceid\": \"1\", \"dns\": \"visionstack-zabbix-agent\", \"useip\": 0}, \"auth\": \"$ZBX_TOKEN\", \"id\": 2}" > /dev/null
+      
+    # 2. Attach 'Docker by Zabbix agent 2' template (10318) to default Zabbix Server host (10084)
+    curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
+      --header 'Content-Type: application/json' \
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"template.massadd\", \"params\": {\"templates\": [{\"templateid\": \"10318\"}], \"hosts\": [{\"hostid\": \"10084\"}]}, \"auth\": \"$ZBX_TOKEN\", \"id\": 3}" > /dev/null
 fi
 
 # --- Netbox Integration ---
@@ -247,10 +253,17 @@ while true; do
 done
 echo -e "\bOnline!"
 
-echo "Generating Netbox API Token and configuring Admin User..."
+echo "Generating Netbox Admin User and Auto-Discovering Containers..."
+CONTAINERS=$(docker ps --format '{{.Names}}')
+
 docker exec -i visionstack-netbox python3 manage.py shell <<EOF
+import sys
 from django.contrib.auth import get_user_model
 from users.models import Token
+from virtualization.models import ClusterType, Cluster, VirtualMachine
+from dcim.models import DeviceRole
+
+# Configure Admin Auth
 User = get_user_model()
 user, created = User.objects.get_or_create(username='admin')
 user.is_superuser = True
@@ -259,6 +272,20 @@ user.set_password('$MASTER_PWD')
 user.save()
 Token.objects.filter(user=user).delete()
 Token.objects.create(user=user, key='$NETBOX_TOKEN')
+
+# Auto-Discover and Document Docker Containers
+try:
+    cluster_type, _ = ClusterType.objects.get_or_create(name='Docker Engine', defaults={'slug': 'docker-engine'})
+    cluster, _ = Cluster.objects.get_or_create(name='VisionStack Host', defaults={'type': cluster_type})
+    role, _ = DeviceRole.objects.get_or_create(name='Docker Container', defaults={'slug': 'docker-container', 'color': '00bcd4'})
+
+    raw_containers = """$CONTAINERS""".split('\n')
+    for name in raw_containers:
+        name = name.strip()
+        if name:
+            VirtualMachine.objects.get_or_create(name=name, defaults={'cluster': cluster, 'role': role, 'status': 'active'})
+except Exception as e:
+    print(f"Container Discovery Error: {e}")
 EOF
 
 # --- Oxidized Integration ---
