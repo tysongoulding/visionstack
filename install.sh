@@ -146,11 +146,11 @@ NETBOX_TOKEN=$(openssl rand -hex 20)
 
 echo -n "Waiting for Netbox Web UI (and Database) to come online..."
 TIMEOUT=0
-while ! curl -s --request GET http://localhost:8020 > /dev/null; do
+while ! curl -s --connect-timeout 2 --request GET http://localhost:8020 > /dev/null; do
     echo -n "."
     sleep 5
     ((TIMEOUT++))
-    if [ $TIMEOUT -gt 60 ]; then
+    if [ $TIMEOUT -gt 120 ]; then
         echo " Timeout!"
         break
     fi
