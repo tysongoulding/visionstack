@@ -1,5 +1,5 @@
 #!/bin/bash
-# visionStack Installer v1.0
+# visionStack Installer v1.1
 set -e
 
 echo "Initializing visionStack Deployment..."
@@ -11,20 +11,18 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # 1.5 Install Dependencies if missing
-echo "Checking for Docker and Docker-Compose..."
 if ! [ -x "$(command -v docker)" ]; then
     echo "Installing Docker..."
     curl -fsSL https://get.docker.com | sh
     sudo usermod -aG docker $USER
 fi
 
-# Check for the Compose Plugin (modern) or Standalone (old)
 if ! docker compose version &> /dev/null && ! docker-compose version &> /dev/null; then
     echo "Installing Docker-Compose..."
     sudo apt-get update && sudo apt-get install -y docker-compose-plugin docker-compose
 fi
 
-# 2. System Optimization for Graylog/OpenSearch
+# 2. System Optimization
 sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" >> /etc/sysctl.conf
 
@@ -36,17 +34,19 @@ chmod -R 775 ./data
 read -p "Enter your Host IP Address: " HOST_IP
 read -p "Enter a Master Password for DBs: " MASTER_PWD
 
-# 5. Launch the Stack
+# 5. Generate Graylog Hash (Crucial for login)
+# This converts your plain text password into the SHA256 hash Graylog requires
+export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
+
+# 6. Launch the Stack
 echo "Deploying containers..."
 export MASTER_PWD=$MASTER_PWD
 export HOST_IP=$HOST_IP
-
-# Try modern 'docker compose' first, fallback to 'docker-compose'
 docker compose up -d || docker-compose up -d
 
-# 6. Post-Deployment Integration (Handshaking)
-echo "Waking up APIs (Waiting 45s for database migrations)..."
-sleep 45
+# 7. Post-Deployment Integration
+echo "Waking up APIs (Waiting 60s for migrations and OpenSearch)..."
+sleep 60
 
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
@@ -88,8 +88,8 @@ echo "------------------------------------------------"
 echo "NetClaw (Host):  http://$HOST_IP:8000 | User: root / Pass: (System)"
 echo "Portainer:       http://$HOST_IP:8010 | User: admin / Pass: $MASTER_PWD"
 echo "Netbox:          http://$HOST_IP:8020 | User: admin / Pass: $MASTER_PWD"
-echo "Zabbix:          http://$HOST_IP:8030 | User: Admin / Pass: zabbix"
-echo "Graylog:         http://$HOST_IP:8040 | User: admin / Pass: admin"
+echo "Zabbix (Web):    http://$HOST_IP:8030 | User: Admin / Pass: zabbix"
+echo "Graylog:         http://$HOST_IP:8040 | User: admin / Pass: $MASTER_PWD"
 echo "Grafana:         http://$HOST_IP:8050 | User: admin / Pass: admin"
 echo "Prometheus:      http://$HOST_IP:8060 | No Auth by Default"
 echo "ntopng:          http://$HOST_IP:8070 | User: admin / Pass: admin"
@@ -98,7 +98,4 @@ echo "------------------------------------------------"
 echo "INTEGRATION COMPLETE"
 echo "Netbox API Token: $NETBOX_TOKEN"
 echo "DB Master Pass:   $MASTER_PWD"
-echo "------------------------------------------------"
-echo "NOTE: Log in to Zabbix/Graylog/Grafana and change"
-echo "default passwords to your Master Password immediately."
 echo "------------------------------------------------"
