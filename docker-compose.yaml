@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.9'
 
 services:
   # Management & Observability
@@ -13,18 +13,50 @@ services:
     image: netboxcommunity/netbox:latest
     container_name: vision-netbox
     ports: ["8020:8080"]
-    environment: [SECRET_KEY=vIsIoNsTaCkSeCrEt]
+    environment:
+      - SECRET_KEY=vIsIoNsTaCkSeCrEt
     depends_on: [postgres, redis]
 
+  # --- Zabbix Tier ---
   zabbix-server:
     image: zabbix/zabbix-server-pgsql:ubuntu-7.0-latest
-    container_name: vision-zabbix
-    ports: ["8030:10051"]
+    container_name: vision-zabbix-server
+    restart: always
     environment:
       - DB_SERVER_HOST=postgres
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=${MASTER_PWD}
+    depends_on: [postgres]
 
+  zabbix-web:
+    image: zabbix/zabbix-web-interface-pgsql:ubuntu-7.0-latest
+    container_name: vision-zabbix-web
+    ports: ["8030:8080"]
+    restart: always
+    environment:
+      - ZBX_SERVER_HOST=zabbix-server
+      - DB_SERVER_HOST=postgres
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=${MASTER_PWD}
+    depends_on: [zabbix-server]
+
+  zabbix-agent:
+    image: zabbix/zabbix-agent2:ubuntu-7.0-latest
+    container_name: vision-zabbix-agent
+    network_mode: host
+    pid: host
+    privileged: true
+    restart: always
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - ZBX_HOSTNAME=visionStack-Host
+      - ZBX_SERVER_HOST=127.0.0.1
+
+  # --- Observability Tier ---
   graylog:
     image: graylog/graylog:6.0
     container_name: vision-graylog
@@ -56,18 +88,27 @@ services:
     ports: ["8080:8888"]
     volumes: ["./data/oxidized:/root/.config/oxidized"]
 
-  # Infrastructure Backend
+  # --- Infrastructure Backend ---
   postgres:
     image: postgres:15-alpine
-    environment: [POSTGRES_PASSWORD=${MASTER_PWD}]
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=${MASTER_PWD}
+
   mongodb:
     image: mongo:7.0
+    restart: always
+
   opensearch:
     image: opensearchproject/opensearch:2.15.0
+    container_name: vision-opensearch
+    restart: always
     environment:
       - discovery.type=single-node
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
       - DISABLE_INSTALL_DEMO_CONFIG=true
       - DISABLE_SECURITY_PLUGIN=true
+
   redis:
     image: redis:7-alpine
+    restart: always
