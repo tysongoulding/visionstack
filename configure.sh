@@ -273,7 +273,8 @@ init_zabbix() {
 # ------------------------------------------
 netbox_migrate() {
     # Run migrations synchronously inside a spinner so we can see when it finishes
-    docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input > /dev/null 2>&1
+    # TTY (-i/-t) flags removed to prevent background thread exit code failures
+    docker exec visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input > /dev/null 2>&1
 }
 
 wait_for_netbox() {
@@ -296,7 +297,8 @@ netbox_config() {
     
     CONTAINERS=$(docker ps --format '{{.Names}}')
 
-    docker exec -i visionstack-netbox python3 manage.py shell <<EOF
+    # Removed -i flag to prevent non-interactive shell errors
+    docker exec visionstack-netbox python3 manage.py shell <<EOF
 import sys
 from django.contrib.auth import get_user_model
 from users.models import Token
