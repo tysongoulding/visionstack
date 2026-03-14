@@ -26,6 +26,21 @@ fi
 sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" >> /etc/sysctl.conf
 
+# 2.5 Docker Log Rotation (Prevent Disk Full)
+# 2.5 Docker Log Rotation (Optimized for 200GB HDD)
+echo "Configuring Docker Log Rotation..."
+mkdir -p /etc/docker
+cat <<EOF > /etc/docker/daemon.json
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "3"
+  }
+}
+EOF
+systemctl restart docker
+
 # 3. Directory Preparation
 mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized}
 chmod -R 775 ./data
