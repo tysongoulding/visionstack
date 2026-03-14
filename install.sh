@@ -161,3 +161,34 @@ for SERVICE in "${SERVICES[@]}"; do
     }" \
     http://localhost:8020/api/dcim/devices/ > /dev/null
 done
+
+# --- Zabbix-Netbox Sync Configuration ---
+echo "Linking Zabbix to Netbox API..."
+
+# 1. Get the Host ID and the Template ID for "Netbox by HTTP"
+ZABBIX_HOST_ID=$(curl -s -X POST -H "Content-Type: application/json-rpc" \
+  -d "{\"jsonrpc\":\"2.0\",\"method\":\"host.get\",\"params\":{\"filter\":{\"host\":[\"Zabbix server\"]}},\"id\":1}" \
+  http://localhost:8030/api_jsonrpc.php | grep -oP '(?<="hostid":")[^"]+')
+
+TEMPLATE_ID=$(curl -s -X POST -H "Content-Type: application/json-rpc" \
+  -d "{\"jsonrpc\":\"2.0\",\"method\":\"template.get\",\"params\":{\"filter\":{\"host\":[\"Netbox by HTTP\"]}},\"id\":1}" \
+  http://localhost:8030/api_jsonrpc.php | grep -oP '(?<="templateid":")[^"]+')
+
+# 2. Update the Host with Macros AND link the Template
+curl -s -X POST -H "Content-Type: application/json-rpc" \
+  -d "{
+    \"jsonrpc\": \"2.0\",
+    \"method\": \"host.update\",
+    \"params\": {
+        \"hostid\": \"$ZABBIX_HOST_ID\",
+        \"templates\": [{\"templateid\": \"$TEMPLATE_ID\"}],
+        \"macros\": [
+            {\"macro\": \"{\$NETBOX.URL}\", \"value\": \"http://vision-netbox:8080/api\"},
+            {\"macro\": \"{\$NETBOX.TOKEN}\", \"value\": \"$NETBOX_TOKEN\"},
+            {\"macro\": \"{\$NETBOX.FILTER}\", \"value\": \"site=visionstack\"}
+        ]
+    },
+    \"id\": 1
+  }" http://localhost:8030/api_jsonrpc.php > /dev/null
+
+echo "Integration Complete. Zabbix is now monitoring the Netbox Inventory."
