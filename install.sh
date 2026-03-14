@@ -2,7 +2,7 @@
 # visionStack Installer v1.4
 set -e
 
-echo "Initializing visionStack Deployment..."
+echo "Initializing visionstack Deployment..."
 
 # 1. Prerequisite Check
 if [[ $EUID -ne 0 ]]; then
