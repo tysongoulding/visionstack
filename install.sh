@@ -128,6 +128,11 @@ while ! curl -s --request GET http://localhost:8010 > /dev/null; do
 done
 echo " Online!"
 
+echo "Configuring Portainer Admin User..."
+curl -s --request POST 'http://localhost:8010/api/users/admin/init' \
+  --header 'Content-Type: application/json' \
+  --data "{}'\"Username\":\"admin\",\"Password\":\"$MASTER_PWD\"}'" > /dev/null
+
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
 
