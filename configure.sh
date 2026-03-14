@@ -237,7 +237,7 @@ init_netbox() {
     i=0
     
     # Print the sub-status on a new line, then restore cursor to main progress bar
-    printf "\n  ${C_CYAN}Running Netbox Migrations (~2-4 min) ${C_DEFAULT} "
+    printf "\n  ${C_CYAN}Building Netbox Database Schema (~2-4 min) ${C_DEFAULT} "
     while kill -0 $MIGRATE_PID 2>/dev/null; do
         i=$(( (i+1) %4 ))
         printf "\b${SPIN:$i:1}"
@@ -248,7 +248,7 @@ init_netbox() {
     # Erase the first sub-status line (cursor is now below it due to the \n above)
     tput cuu1 && tput el
 
-    printf "\n  ${C_CYAN}Waiting for Netbox Web UI (~4-8 min) ${C_DEFAULT} "
+    printf "\n  ${C_CYAN}Booting Netbox Core API (~4-8 min) ${C_DEFAULT} "
     TIMEOUT=0
     while true; do
         HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 "http://localhost:8020/login/" || echo "000")
