@@ -60,6 +60,7 @@ services:
     environment:
       - ZBX_HOSTNAME=visionStack-Host
       - ZBX_SERVER_HOST=visionstack-zabbix-server
+      - ZBX_SERVER_ACTIVE=visionstack-zabbix-server
 
   # --- Observability Tier ---
   graylog:
