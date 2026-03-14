@@ -1,5 +1,5 @@
 #!/bin/bash
-# visionStack Installer v1.2
+# visionStack Installer v1.3
 set -e
 
 echo "Initializing visionStack Deployment..."
@@ -10,7 +10,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-# 1.5 Install Dependencies if missing
+# 1.5 Install Dependencies
 if ! [ -x "$(command -v docker)" ]; then
     echo "Installing Docker..."
     curl -fsSL https://get.docker.com | sh
@@ -34,23 +34,29 @@ chmod -R 775 ./data
 read -p "Enter your Host IP Address: " HOST_IP
 read -p "Enter a Master Password for DBs: " MASTER_PWD
 
-# 5. Generate Graylog Secrets (Crucial for login & stability)
-# SHA256 Hash for the admin password
+# 5. Generate Graylog Secrets
 export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
-# Salt secret for cookies/sessions (at least 16 chars)
 export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
 
 # 6. Launch the Stack
 echo "Deploying containers..."
-# These exports allow docker-compose.yaml to fill in the ${VARIABLES}
 export MASTER_PWD=$MASTER_PWD
 export HOST_IP=$HOST_IP
+export GRAYLOG_ROOT_PASSWORD_SHA2=$GRAYLOG_ROOT_PASSWORD_SHA2
+export GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
 
 docker compose up -d || docker-compose up -d
 
-# 7. Post-Deployment Integration
-echo "Waking up APIs (Waiting 60s for migrations and OpenSearch)..."
-sleep 60
+# 7. Post-Deployment Integration & Health Check
+echo -n "Waking up APIs (Waiting for migrations)..."
+TIMEOUT=0
+while ! curl -s --head --request GET http://localhost:8010 | grep "200 OK" > /dev/null; do
+    echo -n "."
+    sleep 3
+    ((TIMEOUT++))
+    if [ $TIMEOUT -gt 20 ]; then break; fi
+done
+echo " Online!"
 
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
@@ -58,7 +64,7 @@ echo "Generating Netbox API Token..."
 docker exec vision-netbox python3 manage.py create_token --user admin --token $NETBOX_TOKEN > /dev/null
 
 # --- Oxidized Integration ---
-echo "Configuring Oxidized to track Netbox inventory..."
+echo "Configuring Oxidized..."
 cat <<EOF > ./data/oxidized/config
 ---
 username: admin
@@ -80,7 +86,7 @@ source:
 EOF
 
 # --- Grafana Integration ---
-echo "Connecting Grafana to Prometheus telemetry..."
+echo "Connecting Grafana to Prometheus..."
 curl -s -X POST -H "Content-Type: application/json" \
   -d '{"name":"Prometheus","type":"prometheus","url":"http://vision-prometheus:9090","access":"proxy"}' \
   http://admin:admin@localhost:8050/api/datasources > /dev/null
@@ -95,11 +101,10 @@ echo "Netbox:          http://$HOST_IP:8020 | User: admin / Pass: $MASTER_PWD"
 echo "Zabbix (Web):    http://$HOST_IP:8030 | User: Admin / Pass: zabbix"
 echo "Graylog:         http://$HOST_IP:8040 | User: admin / Pass: $MASTER_PWD"
 echo "Grafana:         http://$HOST_IP:8050 | User: admin / Pass: admin"
-echo "Prometheus:      http://$HOST_IP:8060 | No Auth by Default"
+echo "Prometheus:      http://$HOST_IP:8060 | No Auth"
 echo "ntopng:          http://$HOST_IP:8070 | User: admin / Pass: admin"
-echo "Oxidized:        http://$HOST_IP:8080 | No Auth (Internal Only)"
+echo "Oxidized:        http://$HOST_IP:8080 | No Auth"
 echo "------------------------------------------------"
 echo "INTEGRATION COMPLETE"
 echo "Netbox API Token: $NETBOX_TOKEN"
-echo "DB Master Pass:   $MASTER_PWD"
 echo "------------------------------------------------"
