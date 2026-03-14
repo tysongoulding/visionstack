@@ -10,6 +10,19 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
+# 1.5 Install Dependencies if missing
+echo "Checking for Docker and Docker-Compose..."
+if ! [ -x "$(command -v docker)" ]; then
+    echo "Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+    sudo usermod -aG docker $USER
+fi
+
+if ! [ -x "$(command -v docker-compose)" ]; then
+    echo "Installing Docker-Compose..."
+    sudo apt-get update && sudo apt-get install -y docker-compose
+fi
+
 # 2. System Optimization for Graylog/OpenSearch
 sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" >> /etc/sysctl.conf
