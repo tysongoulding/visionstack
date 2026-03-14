@@ -14,7 +14,7 @@ services:
     ports: [ "8020:8080" ]
     environment:
       - SECRET_KEY=${NETBOX_SECRET_KEY}
-      - API_TOKEN_PEPPERS=${API_TOKEN_PEPPERS}
+      - API_TOKEN_PEPPER_1=${API_TOKEN_PEPPERS}
       - DB_HOST=visionstack-postgres-netbox
       - DB_NAME=netbox
       - DB_USER=netbox
