@@ -1,5 +1,5 @@
 #!/bin/bash
-# visionStack Installer v1.4
+# visionstack Installer v1.4
 set -e
 
 echo "Initializing visionstack Deployment..."
@@ -46,7 +46,7 @@ ufw allow 22/tcp
 # Standard Syslog ports for your network gear
 ufw allow 514/udp
 ufw allow 514/tcp
-# visionStack UI Ports
+# visionstack UI Ports
 ufw allow 8000:8080/tcp
 # Enable firewall without asking for confirmation
 ufw --force enable
@@ -101,7 +101,7 @@ else
     # Save credentials for the admin to reference later
     cat <<EOF > ./visionstack_credentials.txt
 ========================================
- visionStack Auto-Generated Credentials
+ visionstack Auto-Generated Credentials
 ========================================
 Deployment Date: \$(date)
 Host IP (Detected): $HOST_IP
@@ -328,7 +328,7 @@ curl -s -X POST -H "Content-Type: application/json" \
 
 # --- Final Credential Print ---
 echo "------------------------------------------------"
-echo "visionStack is now LIVE!"
+echo "visionstack is now LIVE!"
 echo "------------------------------------------------"
 echo "NetClaw (Host):  http://$HOST_IP:8000"
 echo "Portainer:       http://$HOST_IP:8010 | admin / $MASTER_PWD"
@@ -347,12 +347,12 @@ echo "Bootstrapping Netbox Inventory via API..."
 
 # 1. Create the visionStack Site
 curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
-  -d '{"name": "visionStack", "slug": "visionstack"}' \
+  -d '{"name": "visionstack", "slug": "visionstack"}' \
   http://localhost:8020/api/dcim/sites/ > /dev/null
 
 # 2. Create Manufacturer (visionStack)
 curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
-  -d '{"name": "visionStack", "slug": "visionstack"}' \
+  -d '{"name": "visionstack", "slug": "visionstack"}' \
   http://localhost:8020/api/dcim/manufacturers/ > /dev/null
 
 # 3. Create Device Role (Infrastructure)
@@ -415,12 +415,12 @@ echo "Integration Complete. Zabbix is now monitoring the Netbox Inventory."
 echo "Configuring Graylog Inputs (GELF & Syslog)..."
 
 # 1. Create GELF UDP Input (Port 12201)
-curl -s -u admin:$MASTER_PWD -X POST -H "Content-Type: application/json" -H "X-Requested-By: visionStack" \
+curl -s -u admin:$MASTER_PWD -X POST -H "Content-Type: application/json" -H "X-Requested-By: visionstack" \
   -d '{"title":"Docker GELF","type":"org.graylog2.inputs.gelf.udp.GELFUDPInput","configuration":{"bind_address":"0.0.0.0","port":12201,"recv_buffer_size":1048576},"global":true}' \
   http://localhost:8040/api/system/inputs > /dev/null
 
 # 2. Create Syslog UDP Input (Port 1514)
-curl -s -u admin:$MASTER_PWD -X POST -H "Content-Type: application/json" -H "X-Requested-By: visionStack" \
+curl -s -u admin:$MASTER_PWD -X POST -H "Content-Type: application/json" -H "X-Requested-By: visionstack" \
   -d '{"title":"Network Syslog","type":"org.graylog2.inputs.syslog.udp.SyslogUDPInput","configuration":{"bind_address":"0.0.0.0","port":1514,"recv_buffer_size":1048576,"force_rdns":false},"global":true}' \
   http://localhost:8040/api/system/inputs > /dev/null
 
