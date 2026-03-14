@@ -86,6 +86,8 @@ services:
     container_name: visionstack-grafana
     restart: always
     ports: [ "8050:3000" ]
+    environment:
+      - GF_INSTALL_PLUGINS=alexanderzobnin-zabbix-app,redis-datasource
 
   prometheus:
     image: prom/prometheus:latest

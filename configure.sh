@@ -41,15 +41,33 @@ ZBX_TOKEN=$(curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
   --data '{"jsonrpc": "2.0", "method": "user.login", "params": {"username": "Admin", "password": "zabbix"}, "id": 1}' | sed -n 's/.*"result":"\([^"]*\)".*/\1/p')
 
 if [ -n "$ZBX_TOKEN" ]; then
+    echo "Resolving internal Zabbix Entity IDs dynamically..."
+    ZBX_SERVER_ID=$(curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
+      --header 'Content-Type: application/json' \
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"host.get\", \"params\": {\"filter\": {\"host\": [\"Zabbix server\"]}}, \"auth\": \"$ZBX_TOKEN\", \"id\": 1}" | grep -oP '(?<="hostid":")[^"]+')
+
+    ZBX_DOCKER_TPL_ID=$(curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
+      --header 'Content-Type: application/json' \
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"template.get\", \"params\": {\"filter\": {\"host\": [\"Docker by Zabbix agent 2\"]}}, \"auth\": \"$ZBX_TOKEN\", \"id\": 1}" | grep -oP '(?<="templateid":")[^"]+')
+
+    ZBX_INTERFACE_ID=$(curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
+      --header 'Content-Type: application/json' \
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"hostinterface.get\", \"params\": {\"hostids\": \"$ZBX_SERVER_ID\"}, \"auth\": \"$ZBX_TOKEN\", \"id\": 1}" | grep -oP '(?<="interfaceid":")[^"]+' | head -n 1)
+
     # 1. Update default agent DNS interface
     curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
       --header 'Content-Type: application/json' \
-      --data "{\"jsonrpc\": \"2.0\", \"method\": \"hostinterface.update\", \"params\": {\"interfaceid\": \"1\", \"dns\": \"visionstack-zabbix-agent\", \"useip\": 0}, \"auth\": \"$ZBX_TOKEN\", \"id\": 2}" > /dev/null
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"hostinterface.update\", \"params\": {\"interfaceid\": \"$ZBX_INTERFACE_ID\", \"dns\": \"visionstack-zabbix-agent\", \"useip\": 0}, \"auth\": \"$ZBX_TOKEN\", \"id\": 2}" > /dev/null
       
-    # 2. Attach 'Docker by Zabbix agent 2' template (10318) to default Zabbix Server host (10084)
+    # 2. Attach 'Docker by Zabbix agent 2' template
     curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
       --header 'Content-Type: application/json' \
-      --data "{\"jsonrpc\": \"2.0\", \"method\": \"template.massadd\", \"params\": {\"templates\": [{\"templateid\": \"10318\"}], \"hosts\": [{\"hostid\": \"10084\"}]}, \"auth\": \"$ZBX_TOKEN\", \"id\": 3}" > /dev/null
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"template.massadd\", \"params\": {\"templates\": [{\"templateid\": \"$ZBX_DOCKER_TPL_ID\"}], \"hosts\": [{\"hostid\": \"$ZBX_SERVER_ID\"}]}, \"auth\": \"$ZBX_TOKEN\", \"id\": 3}" > /dev/null
+
+    # 3. Create HTTP Tracking for Container GUIs
+    curl -s -X POST -H 'Content-Type: application/json' \
+      -d "{\"jsonrpc\": \"2.0\", \"method\": \"httptest.create\", \"params\": { \"name\": \"VisionStack Web GUIs\", \"hostid\": \"$ZBX_SERVER_ID\", \"steps\": [ { \"name\": \"Portainer\", \"url\": \"http://visionstack-portainer:9000\", \"status_codes\": \"200\", \"no\": 1 }, { \"name\": \"Netbox\", \"url\": \"http://visionstack-netbox:8080/login/\", \"status_codes\": \"200\", \"no\": 2 }, { \"name\": \"Grafana\", \"url\": \"http://visionstack-grafana:3000/api/health\", \"status_codes\": \"200\", \"no\": 3 }, { \"name\": \"Zabbix Web\", \"url\": \"http://visionstack-zabbix-web:8080/ping\", \"status_codes\": \"200\", \"no\": 4 }, { \"name\": \"ntopng\", \"url\": \"http://visionstack-ntopng:3000\", \"status_codes\": \"200,302\", \"no\": 5 } ] }, \"auth\": \"$ZBX_TOKEN\", \"id\": 4}" \
+      http://localhost:8030/api_jsonrpc.php > /dev/null
 fi
 
 # --- Netbox Integration ---
@@ -146,9 +164,31 @@ source:
 EOF
 
 # --- Grafana Integration ---
-echo "Connecting Grafana to Prometheus..."
+echo "Connecting Grafana to Prometheus and Backend Databases..."
+
 curl -s -X POST -H "Content-Type: application/json" \
   -d '{"name":"Prometheus","type":"prometheus","url":"http://visionstack-prometheus:9090","access":"proxy"}' \
+  http://admin:admin@localhost:8050/api/datasources > /dev/null
+
+curl -s -X POST -H "Content-Type: application/json" \
+  -d "{\"name\":\"PostgreSQL (Netbox)\",\"type\":\"postgres\",\"url\":\"visionstack-postgres-netbox:5432\",\"access\":\"proxy\",\"database\":\"netbox\",\"user\":\"netbox\",\"secureJsonData\":{\"password\":\"$MASTER_PWD\"},\"jsonData\":{\"sslmode\":\"disable\",\"postgresVersion\":15}}" \
+  http://admin:admin@localhost:8050/api/datasources > /dev/null
+
+curl -s -X POST -H "Content-Type: application/json" \
+  -d "{\"name\":\"PostgreSQL (Zabbix)\",\"type\":\"postgres\",\"url\":\"visionstack-postgres-zabbix:5432\",\"access\":\"proxy\",\"database\":\"zabbix\",\"user\":\"zabbix\",\"secureJsonData\":{\"password\":\"$MASTER_PWD\"},\"jsonData\":{\"sslmode\":\"disable\",\"postgresVersion\":15}}" \
+  http://admin:admin@localhost:8050/api/datasources > /dev/null
+
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"name":"OpenSearch (Graylog)","type":"elasticsearch","url":"http://visionstack-opensearch:9200","access":"proxy","database":"[graylog_deflector]","jsonData":{"esVersion":"7.10.0","timeField":"timestamp","tlsSkipVerify":true}}' \
+  http://admin:admin@localhost:8050/api/datasources > /dev/null
+
+# Requires plugins from GF_INSTALL_PLUGINS
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"name":"Zabbix","type":"alexanderzobnin-zabbix-datasource","url":"http://visionstack-zabbix-web:8080/api_jsonrpc.php","access":"proxy","jsonData":{"username":"Admin","zabbixVersion":70},"secureJsonData":{"password":"zabbix"}}' \
+  http://admin:admin@localhost:8050/api/datasources > /dev/null
+
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"name":"Redis","type":"redis-datasource","url":"redis://visionstack-redis:6379","access":"proxy"}' \
   http://admin:admin@localhost:8050/api/datasources > /dev/null
 
 # --- Netbox Bootstrap & Service Registration ---
@@ -169,12 +209,28 @@ curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: applic
   -d '{"name": "Infrastructure", "slug": "infrastructure", "color": "4caf50"}' \
   http://localhost:8020/api/dcim/device-roles/ > /dev/null
 
-# 4. Create Device Type (Docker Container)
+# 4. Create Device Type (Docker Container & Baremetal Server)
 curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
   -d '{"manufacturer": {"slug": "visionstack"}, "model": "Docker Container", "slug": "docker-container"}' \
   http://localhost:8020/api/dcim/device-types/ > /dev/null
 
-# 5. Register Services
+curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
+  -d '{"manufacturer": {"slug": "visionstack"}, "model": "Baremetal Server", "slug": "baremetal-server"}' \
+  http://localhost:8020/api/dcim/device-types/ > /dev/null
+
+# 5. Register Baremetal Host Server
+echo "Registering Host Engine in Netbox..."
+curl -s -X POST -H "Authorization: Token $NETBOX_TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "name": "VisionStack Host Server",
+    "device_type": {"slug": "baremetal-server"},
+    "site": {"slug": "visionstack"},
+    "status": "active",
+    "role": {"slug": "infrastructure"}
+  }' \
+  http://localhost:8020/api/dcim/devices/ > /dev/null
+
+# 6. Register Application Services
 SERVICES=("Portainer" "Netbox" "Zabbix" "Graylog" "Grafana" "Prometheus" "ntopng" "Oxidized")
 for SERVICE in "${SERVICES[@]}"; do
   echo "Registering $SERVICE in Netbox..."
