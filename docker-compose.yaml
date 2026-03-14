@@ -63,7 +63,7 @@ services:
 
   # --- Observability Tier ---
   graylog:
-    image: graylog/graylog:5.2
+    image: graylog/graylog:6.0
     container_name: visionstack-graylog
     restart: always
     ports:
@@ -129,7 +129,7 @@ services:
       - ./data/postgres-zabbix:/var/lib/postgresql/data
 
   mongodb:
-    image: mongo:4.4
+    image: mongo:7.0
     container_name: visionstack-mongodb
     restart: always
     volumes:
