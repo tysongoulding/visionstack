@@ -64,7 +64,7 @@ services:
 
   # --- Observability Tier ---
   graylog:
-    image: graylog/graylog:6.0
+    image: graylog/graylog:7.0
     container_name: visionstack-graylog
     restart: always
     ports:
