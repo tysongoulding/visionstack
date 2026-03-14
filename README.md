@@ -7,10 +7,23 @@
 
 ## 🚀 Quick Start
 
-Run the following one-liner to download and execute the fully automated setup script.
+Choose one of the following installation methods. Note that the script is fully automated and will auto-detect your host IP and auto-generate secure passwords.
+
+### Option 1: The One-Liner (Recommended)
+Run the following one-liner to download and execute the fully automated setup script directly.
 
 ```bash
 curl -sL https://raw.githubusercontent.com/tysongoulding/visionstack/main/install.sh | sudo bash
+```
+
+### Option 2: Manual Clone
+If you prefer to clone the repository locally first, you can run the following sequence:
+
+```bash
+git clone https://github.com/tysongoulding/visionstack.git
+cd visionstack
+sudo chmod +x install.sh
+sudo ./install.sh
 ```
 ### 🗺️ Port Map & Ecosystem
 
