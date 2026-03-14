@@ -197,6 +197,18 @@ curl -s --request POST 'http://localhost:8010/api/users/admin/init' \
   --header 'Content-Type: application/json' \
   --data "{\"Username\":\"admin\",\"Password\":\"$MASTER_PWD\"}" > /dev/null
 
+# --- Zabbix Integration ---
+echo "Configuring Zabbix Agent Registration..."
+ZBX_TOKEN=$(curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
+  --header 'Content-Type: application/json' \
+  --data '{"jsonrpc": "2.0", "method": "user.login", "params": {"username": "Admin", "password": "zabbix"}, "id": 1}' | sed -n 's/.*"result":"\([^"]*\)".*/\1/p')
+
+if [ -n "$ZBX_TOKEN" ]; then
+    curl -s --request POST 'http://localhost:8030/api_jsonrpc.php' \
+      --header 'Content-Type: application/json' \
+      --data "{\"jsonrpc\": \"2.0\", \"method\": \"hostinterface.update\", \"params\": {\"interfaceid\": \"1\", \"dns\": \"visionstack-zabbix-agent\", \"useip\": 0}, \"auth\": \"$ZBX_TOKEN\", \"id\": 2}" > /dev/null
+fi
+
 # --- Netbox Integration ---
 NETBOX_TOKEN=$(openssl rand -hex 20)
 
