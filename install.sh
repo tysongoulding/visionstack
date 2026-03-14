@@ -117,6 +117,9 @@ if [ -f "./visionstack_credentials.txt" ]; then
     export NETBOX_SECRET_KEY=$(grep -m 1 "Netbox Secret Key:" ./visionstack_credentials.txt | awk '{print $4}')
     export NETBOX_TOKEN=$(grep -m 1 "Netbox API Token:" ./visionstack_credentials.txt | awk '{print $4}')
     export API_TOKEN_PEPPERS=$(grep -m 1 "Netbox Token Pepper:" ./visionstack_credentials.txt | awk '{print $4}')
+    if [[ ! "$API_TOKEN_PEPPERS" == \[* ]]; then
+        export API_TOKEN_PEPPERS="['$API_TOKEN_PEPPERS']"
+    fi
     export VISION_READ_PWD=$(grep -m 1 "vision-read Pass:" ./visionstack_credentials.txt | awk '{print $3}')
     export VISION_WRITE_PWD=$(grep -m 1 "vision-write Pass:" ./visionstack_credentials.txt | awk '{print $3}')
     export VISION_READ_TOKEN=$(grep -m 1 "vision-read App Token:" ./visionstack_credentials.txt | awk '{print $4}')
@@ -137,7 +140,7 @@ else
     export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
     export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
     export NETBOX_TOKEN=$(openssl rand -hex 20)
-    export API_TOKEN_PEPPERS=$(openssl rand -hex 32)
+    export API_TOKEN_PEPPERS="['$(openssl rand -base64 32)']"
 
     cat <<EOF > ./visionstack_credentials.txt
 ========================================
@@ -229,6 +232,19 @@ fi
 
 # 6. Launch the Stack
 log_step "Launching Engine Core (Docker Compose)"
+
+# Generate .env file for docker compose to support manual usage
+log_info "Generating docker compose .env file..."
+cat <<EOF > .env
+MASTER_PWD=$MASTER_PWD
+HOST_IP=$HOST_IP
+GRAYLOG_ROOT_PASSWORD_SHA2=$GRAYLOG_ROOT_PASSWORD_SHA2
+GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
+NETBOX_SECRET_KEY=$NETBOX_SECRET_KEY
+API_TOKEN_PEPPERS=$API_TOKEN_PEPPERS
+EOF
+chmod 600 .env
+
 export MASTER_PWD=$MASTER_PWD
 export HOST_IP=$HOST_IP
 export GRAYLOG_ROOT_PASSWORD_SHA2=$GRAYLOG_ROOT_PASSWORD_SHA2

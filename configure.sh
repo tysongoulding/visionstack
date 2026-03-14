@@ -488,6 +488,24 @@ init_graylog
 draw_progress "Linking Zabbix <-> Netbox..."
 link_zabbix_netbox
 
+# --- Final Credential Print ---
+echo -e "\n${C_MAGENTA}================================================================${C_DEFAULT}"
+echo -e "${C_GREEN}  visionstack Infrastructure is LIVE!${C_DEFAULT}"
+echo -e "${C_MAGENTA}================================================================${C_DEFAULT}"
+echo -e "${C_CYAN}  NetClaw (Host) :${C_DEFAULT} http://$HOST_IP:8000"
+echo -e "${C_CYAN}  Portainer      :${C_DEFAULT} http://$HOST_IP:8010 | admin / $MASTER_PWD"
+echo -e "${C_CYAN}  Netbox         :${C_DEFAULT} http://$HOST_IP:8020 | admin / $MASTER_PWD"
+echo -e "${C_CYAN}  Zabbix (Web)   :${C_DEFAULT} http://$HOST_IP:8030 | Admin / zabbix"
+echo -e "${C_CYAN}  Graylog        :${C_DEFAULT} http://$HOST_IP:8040 | admin / $MASTER_PWD"
+echo -e "${C_CYAN}  Grafana        :${C_DEFAULT} http://$HOST_IP:8050 | admin / admin"
+echo -e "${C_CYAN}  Prometheus     :${C_DEFAULT} http://$HOST_IP:8060 | (No auth)"
+echo -e "${C_CYAN}  ntopng         :${C_DEFAULT} http://$HOST_IP:8070 | admin / admin"
+echo -e "${C_MAGENTA}----------------------------------------------------------------${C_DEFAULT}"
+echo -e "${C_YELLOW}  Universal Service Accounts Active:${C_DEFAULT}"
+echo -e "  vision-read  | $VISION_READ_PWD"
+echo -e "  vision-write | $VISION_WRITE_PWD"
+echo -e "${C_MAGENTA}================================================================${C_DEFAULT}\n"
+
 echo ""
 echo ""
 log_succ "visionstack Configuration Complete!"
