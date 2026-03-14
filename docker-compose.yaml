@@ -60,7 +60,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - ZBX_HOSTNAME=visionStack-Host
-      - ZBX_SERVER_HOST=visionstack-zabbix-server
+      - ZBX_SERVER_HOST=0.0.0.0/0
       - ZBX_SERVER_ACTIVE=visionstack-zabbix-server
 
   # --- Observability Tier ---

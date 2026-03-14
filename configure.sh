@@ -90,7 +90,11 @@ wait_for_portainer() {
 wait_for_zabbix() {
     local TIMEOUT=0
     # Wait for the API to actually start returning valid JSON RPCs
-    while ! curl -s -X POST -H 'Content-Type: application/json' -d '{"jsonrpc": "2.0", "method": "apiinfo.version", "id": 1}' "$ZABBIX_API" | grep -q 'result'; do
+    while true; do
+        local RESPONSE=$(curl -s -X POST -H 'Content-Type: application/json' -d '{"jsonrpc": "2.0", "method": "apiinfo.version", "id": 1}' "$ZABBIX_API" || echo "failed")
+        if [[ "$RESPONSE" == *"result"* ]]; then
+            break
+        fi
         sleep 3
         TIMEOUT=$((TIMEOUT + 1))
         # Zabbix postgres DB initialization is notoriously slow on first boot. Need an extended timeout here.
