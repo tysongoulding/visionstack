@@ -14,9 +14,12 @@ services:
     ports: [ "8020:8080" ]
     environment:
       - SECRET_KEY=${NETBOX_SECRET_KEY}
-      - DB_HOST=visionstack-postgres
+      - DB_HOST=visionstack-postgres-netbox
+      - DB_NAME=netbox
+      - DB_USER=netbox
+      - DB_PASSWORD=${MASTER_PWD}
       - REDIS_HOST=visionstack-redis
-    depends_on: [ postgres, redis ]
+    depends_on: [ postgres-netbox, redis ]
 
   # --- Zabbix Tier ---
   zabbix-server:
@@ -24,10 +27,11 @@ services:
     container_name: visionstack-zabbix-server
     restart: always
     environment:
-      - DB_SERVER_HOST=visionstack-postgres
+      - DB_SERVER_HOST=visionstack-postgres-zabbix
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=${MASTER_PWD}
-    depends_on: [ postgres ]
+      - POSTGRES_DB=zabbix
+    depends_on: [ postgres-zabbix ]
 
   zabbix-web:
     image: zabbix/zabbix-web-nginx-pgsql:ubuntu-7.0-latest
@@ -36,10 +40,11 @@ services:
     ports: [ "8030:8080" ]
     environment:
       - ZBX_SERVER_HOST=visionstack-zabbix-server
-      - DB_SERVER_HOST=visionstack-postgres
+      - DB_SERVER_HOST=visionstack-postgres-zabbix
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=${MASTER_PWD}
-    depends_on: [ zabbix-server ]
+      - POSTGRES_DB=zabbix
+    depends_on: [ zabbix-server, postgres-zabbix ]
 
   zabbix-agent:
     image: zabbix/zabbix-agent2:ubuntu-7.0-latest
@@ -102,16 +107,27 @@ services:
     volumes: [ "./data/oxidized:/root/.config/oxidized" ]
 
   # --- Infrastructure Backend ---
-  postgres:
+  postgres-netbox:
     image: postgres:15-alpine
-    container_name: visionstack-postgres
+    container_name: visionstack-postgres-netbox
     restart: always
     environment:
-      - POSTGRES_USER=postgres
+      - POSTGRES_DB=netbox
+      - POSTGRES_USER=netbox
       - POSTGRES_PASSWORD=${MASTER_PWD}
     volumes:
-      - ./data/postgres/data:/var/lib/postgresql/data
-      - ./data/postgres/init-postgres.sh:/docker-entrypoint-initdb.d/init-postgres.sh
+      - ./data/postgres-netbox:/var/lib/postgresql/data
+
+  postgres-zabbix:
+    image: postgres:15-alpine
+    container_name: visionstack-postgres-zabbix
+    restart: always
+    environment:
+      - POSTGRES_DB=zabbix
+      - POSTGRES_USER=zabbix
+      - POSTGRES_PASSWORD=${MASTER_PWD}
+    volumes:
+      - ./data/postgres-zabbix:/var/lib/postgresql/data
 
   mongodb:
     image: mongo:4.4
@@ -136,3 +152,7 @@ services:
     image: redis:7-alpine
     container_name: visionstack-redis
     restart: always
+
+networks:
+  default:
+    name: visionstack-network

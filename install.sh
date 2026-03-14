@@ -56,7 +56,7 @@ echo "Adding weekly maintenance schedule..."
 (crontab -l 2>/dev/null; echo "0 0 * * 0 docker system prune -af --volumes > /dev/null 2>&1") | crontab -
 
 # 3. Directory & Compose File Preparation
-mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized,postgres,mongodb,opensearch}
+mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized,postgres-netbox,postgres-zabbix,mongodb,opensearch}
 chmod -R 777 ./data
 
 # If running via exactly a one-liner without cloning, download the compose file
@@ -100,19 +100,6 @@ EOF
 chmod 600 ./visionstack_credentials.txt
 echo "Credentials saved to ./visionstack_credentials.txt (Keep this safe!)"
 
-# 5.5 Generate Postgres Init Script for Multiple Databases
-cat <<EOF > ./data/postgres/init-postgres.sh
-#!/bin/bash
-set -e
-psql -v ON_ERROR_STOP=1 --username "postgres" --dbname "postgres" <<-EOSQL
-    CREATE USER netbox WITH PASSWORD '$MASTER_PWD';
-    CREATE DATABASE netbox OWNER netbox;
-    CREATE USER zabbix WITH PASSWORD '$MASTER_PWD';
-    CREATE DATABASE zabbix OWNER zabbix;
-EOSQL
-EOF
-chmod +x ./data/postgres/init-postgres.sh
-
 # 6. Launch the Stack
 echo "Deploying containers..."
 export MASTER_PWD=$MASTER_PWD
@@ -136,7 +123,7 @@ TIMEOUT=0
 while ! curl -s --request GET http://localhost:8010 > /dev/null; do
     echo -n "."
     sleep 3
-    ((TIMEOUT++))
+    TIMEOUT=$((TIMEOUT + 1))
     if [ $TIMEOUT -gt 20 ]; then break; fi
 done
 echo " Online!"
@@ -146,10 +133,14 @@ NETBOX_TOKEN=$(openssl rand -hex 20)
 
 echo -n "Waiting for Netbox Web UI (and Database) to come online..."
 TIMEOUT=0
-while ! curl -s --connect-timeout 2 --request GET http://localhost:8020 > /dev/null; do
+while true; do
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 http://localhost:8020 || echo "000")
+    if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ] || [ "$HTTP_CODE" = "301" ]; then
+        break
+    fi
     echo -n "."
     sleep 5
-    ((TIMEOUT++))
+    TIMEOUT=$((TIMEOUT + 1))
     if [ $TIMEOUT -gt 120 ]; then
         echo " Timeout!"
         break
