@@ -13,7 +13,7 @@ Choose one of the following installation methods. Note that the script is fully 
 Run the following one-liner to download and execute the fully automated setup script directly.
 
 ```bash
-curl -sL https://raw.githubusercontent.com/tysongoulding/visionstack/main/install.sh | sudo bash
+curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/install.sh?t=$(date +%s)" | sudo bash
 ```
 
 ### Option 2: Manual Clone

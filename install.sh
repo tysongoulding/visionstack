@@ -62,7 +62,7 @@ chmod -R 775 ./data
 # If running via exactly a one-liner without cloning, download the compose file
 if [ ! -f "docker-compose.yaml" ]; then
     echo "Downloading docker-compose.yaml..."
-    curl -sL https://raw.githubusercontent.com/tysongoulding/visionstack/main/docker-compose.yaml -o docker-compose.yaml
+    curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/docker-compose.yaml?t=$(date +%s)" -o docker-compose.yaml
 fi
 
 # 4. Setup Wizard
