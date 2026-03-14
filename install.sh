@@ -13,17 +13,21 @@ C_YELLOW='\033[1;33m'
 C_RED='\033[1;31m'
 C_MAGENTA='\033[1;35m'
 
-log_info() { echo -e "${C_BLUE}ℹ${C_DEFAULT} $1"; }
-log_succ() { echo -e "${C_GREEN}✔${C_DEFAULT} $1"; }
-log_warn() { echo -e "${C_YELLOW}⚠${C_DEFAULT} $1"; }
-log_err()  { echo -e "${C_RED}✖${C_DEFAULT} $1"; }
-log_step() { echo -e "\n${C_MAGENTA}==>${C_DEFAULT} ${C_CYAN}$1${C_DEFAULT}"; }
+log_info() { echo -e "${C_BLUE}[INFO]${C_DEFAULT} $1"; }
+log_succ() { echo -e "${C_GREEN}[ OK ]${C_DEFAULT} $1"; }
+log_warn() { echo -e "${C_YELLOW}[WARN]${C_DEFAULT} $1"; }
+log_err()  { echo -e "${C_RED}[ERR!]${C_DEFAULT} $1"; }
+log_step() { echo -e "\n${C_MAGENTA}===>${C_DEFAULT} ${C_CYAN}$1${C_DEFAULT}"; }
 
 clear
-echo -e "${C_MAGENTA}"
-echo "                     "
-echo "  🆅🅸🆂🅸🅾🅽🆂🆃🅰🅲🅺  "
-echo "                     "
+echo -e "${C_CYAN}"
+echo "                                                     "
+echo "        _     _                 _             _      "
+echo " __   _(_)___(_) ___  _ __  ___| |_ __ _  ___| | __  "
+echo " \ \ / / / __| |/ _ \| '_ \/ __| __/ _` |/ __| |/ /  "
+echo "  \ V /| \__ \ | (_) | | | \__ \ || (_| | (__|   <   "
+echo "   \_/ |_|___/_|\___/|_| |_|___/\__\__,_|\___|_|\_\  "
+echo "                                                     "
 echo -e "${C_DEFAULT}"
 log_step "Initializing Stage 1: Infrastructure Deployment"
 

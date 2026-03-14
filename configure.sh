@@ -13,11 +13,11 @@ C_YELLOW='\033[1;33m'
 C_RED='\033[1;31m'
 C_MAGENTA='\033[1;35m'
 
-log_info() { echo -e "${C_BLUE}ℹ${C_DEFAULT} $1"; }
-log_succ() { echo -e "${C_GREEN}✔${C_DEFAULT} $1"; }
-log_warn() { echo -e "${C_YELLOW}⚠${C_DEFAULT} $1"; }
-log_err()  { echo -e "${C_RED}✖${C_DEFAULT} $1"; }
-log_step() { echo -e "\n${C_MAGENTA}==>${C_DEFAULT} ${C_CYAN}$1${C_DEFAULT}"; }
+log_info() { echo -e "${C_BLUE}[INFO]${C_DEFAULT} $1"; }
+log_succ() { echo -e "${C_GREEN}[ OK ]${C_DEFAULT} $1"; }
+log_warn() { echo -e "${C_YELLOW}[WARN]${C_DEFAULT} $1"; }
+log_err()  { echo -e "${C_RED}[ERR!]${C_DEFAULT} $1"; }
+log_step() { echo -e "\n${C_MAGENTA}===>${C_DEFAULT} ${C_CYAN}$1${C_DEFAULT}"; }
 
 TOTAL_STEPS=7
 CURRENT_STEP=0
@@ -29,7 +29,7 @@ draw_progress() {
     let _left=40-$_done
     _fill=$(printf "%${_done}s")
     _empty=$(printf "%${_left}s")
-    printf "\r${C_BLUE}[${C_GREEN}${_fill// /█}${C_DEFAULT}${_empty// /░}${C_BLUE}] ${_progress}%%${C_DEFAULT} - %-40s" "$1"
+    printf "\r${C_BLUE}[${C_GREEN}${_fill// /#}${C_DEFAULT}${_empty// /-}${C_BLUE}] ${_progress}%%${C_DEFAULT} - %-40s" "$1"
 }
 
 # ==========================================
@@ -70,7 +70,7 @@ wait_for_apis() {
     TIMEOUT=0
     printf "  "
     while ! curl -s -X GET "$PORTAINER_API/status" > /dev/null; do
-        printf "${C_CYAN}❖${C_DEFAULT}"
+        printf "${C_CYAN}.${C_DEFAULT}"
         sleep 3
         TIMEOUT=$((TIMEOUT + 1))
         if [ $TIMEOUT -gt 20 ]; then break; fi
@@ -446,12 +446,12 @@ link_zabbix_netbox() {
 # EXECUTION
 # ==========================================
 clear
-echo -e "${C_MAGENTA}"
-echo "    _    ___     _               _____ __             "
-echo "   | |  / (_)__ (_)___  ____    / ___// /_____  _____"
-echo "   | | / / / ___/ / __ \/ __ \   \__ \/ __/ __ \/ ___/"
-echo "   | |/ / (__  ) / /_/ / / / /  ___/ / /_/ /_/ / /__  "
-echo "   |___/_/____/_/\____/_/ /_/  /____/\__/\__,_/\___/  "
+echo -e "${C_CYAN}"
+echo "       _                     _             _    "
+echo " __   _(_)___  ___  _ __  ___| |_ __ _  ___| | __"
+echo " \ \ / / / __|/ _ \| '_ \/ __| __/ _\` |/ __| |/ /"
+echo "  \ V /| \__ \ (_) | | | \__ \ || (_| | (__|   < "
+echo "   \_/ |_|___/\___/|_| |_|___/\__\__,_|\___|_|\_\\"
 echo "                                                      "
 echo -e "${C_DEFAULT}"
 log_step "Initializing Component Integrations..."
