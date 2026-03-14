@@ -89,10 +89,12 @@ wait_for_portainer() {
 
 wait_for_zabbix() {
     local TIMEOUT=0
-    while ! curl -s -X POST -H 'Content-Type: application/json' -d '{"jsonrpc": "2.0", "method": "apiinfo.version", "id": 1}' "$ZABBIX_API" > /dev/null; do
+    # Wait for the API to actually start returning valid JSON RPCs
+    while ! curl -s -X POST -H 'Content-Type: application/json' -d '{"jsonrpc": "2.0", "method": "apiinfo.version", "id": 1}' "$ZABBIX_API" | grep -q 'result'; do
         sleep 3
         TIMEOUT=$((TIMEOUT + 1))
-        if [ $TIMEOUT -gt 20 ]; then exit 1; fi
+        # Zabbix postgres DB initialization is notoriously slow on first boot. Need an extended timeout here.
+        if [ $TIMEOUT -gt 60 ]; then exit 1; fi
     done
 }
 
@@ -266,7 +268,8 @@ init_zabbix() {
 # NETBOX
 # ------------------------------------------
 netbox_migrate() {
-    docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input
+    # Run migrations synchronously inside a spinner so we can see when it finishes
+    docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input > /dev/null 2>&1
 }
 
 wait_for_netbox() {
@@ -274,11 +277,14 @@ wait_for_netbox() {
     while true; do
         local HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 "http://localhost:8020/login/" || echo "000")
         if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "301" || "$HTTP_CODE" == "302" ]]; then
+            # Wait an additional small delay to ensure the web workers are fully bound
+            sleep 5
             break
         fi
         sleep 3
         TIMEOUT=$((TIMEOUT + 1))
-        if [ $TIMEOUT -gt 60 ]; then exit 1; fi
+        # NetBox API boot takes several minutes after DB schema build
+        if [ $TIMEOUT -gt 180 ]; then exit 1; fi
     done
 }
 
