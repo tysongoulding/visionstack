@@ -18,9 +18,10 @@ if ! [ -x "$(command -v docker)" ]; then
     sudo usermod -aG docker $USER
 fi
 
-if ! [ -x "$(command -v docker-compose)" ]; then
+# Check for the Compose Plugin (modern) or Standalone (old)
+if ! docker compose version &> /dev/null && ! docker-compose version &> /dev/null; then
     echo "Installing Docker-Compose..."
-    sudo apt-get update && sudo apt-get install -y docker-compose
+    sudo apt-get update && sudo apt-get install -y docker-compose-plugin docker-compose
 fi
 
 # 2. System Optimization for Graylog/OpenSearch
@@ -28,7 +29,6 @@ sysctl -w vm.max_map_count=262144
 echo "vm.max_map_count=262144" >> /etc/sysctl.conf
 
 # 3. Directory Preparation
-# We create Oxidized config folder early so it doesn't crash on boot
 mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized}
 chmod -R 775 ./data
 
@@ -40,7 +40,9 @@ read -p "Enter a Master Password for DBs: " MASTER_PWD
 echo "Deploying containers..."
 export MASTER_PWD=$MASTER_PWD
 export HOST_IP=$HOST_IP
-docker-compose up -d
+
+# Try modern 'docker compose' first, fallback to 'docker-compose'
+docker compose up -d || docker-compose up -d
 
 # 6. Post-Deployment Integration (Handshaking)
 echo "Waking up APIs (Waiting 45s for database migrations)..."
@@ -52,7 +54,6 @@ echo "Generating Netbox API Token..."
 docker exec vision-netbox python3 manage.py create_token --user admin --token $NETBOX_TOKEN > /dev/null
 
 # --- Oxidized Integration ---
-# Ensure no spaces exist after the final EOF below
 echo "Configuring Oxidized to track Netbox inventory..."
 cat <<EOF > ./data/oxidized/config
 ---
