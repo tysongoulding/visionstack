@@ -55,9 +55,15 @@ ufw --force enable
 echo "Adding weekly maintenance schedule..."
 (crontab -l 2>/dev/null; echo "0 0 * * 0 docker system prune -af --volumes > /dev/null 2>&1") | crontab -
 
-# 3. Directory Preparation
+# 3. Directory & Compose File Preparation
 mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized}
 chmod -R 775 ./data
+
+# If running via exactly a one-liner without cloning, download the compose file
+if [ ! -f "docker-compose.yaml" ]; then
+    echo "Downloading docker-compose.yaml..."
+    curl -sL https://raw.githubusercontent.com/tysongoulding/visionstack/main/docker-compose.yaml -o docker-compose.yaml
+fi
 
 # 4. Setup Wizard
 # Auto-detect IP if not provided
