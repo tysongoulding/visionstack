@@ -77,23 +77,33 @@ if [ -z "$HOST_IP" ]; then
     echo "Auto-detected Host IP: $HOST_IP"
 fi
 
-# Auto-generate password if not provided
-if [ -z "$MASTER_PWD" ]; then
-    MASTER_PWD=$(openssl rand -hex 12)
-    echo "Auto-generated Master Password."
-fi
+# Check for existing credentials to ensure idempotency on re-runs
+if [ -f "./visionstack_credentials.txt" ]; then
+    echo "Existing credentials file found. Reusing previous secrets to prevent database lockout..."
+    export MASTER_PWD=$(grep -m 1 "Master Password:" ./visionstack_credentials.txt | awk '{print $3}')
+    export GRAYLOG_PASSWORD_SECRET=$(grep -m 1 "Graylog Secret:" ./visionstack_credentials.txt | awk '{print $3}')
+    export NETBOX_SECRET_KEY=$(grep -m 1 "Netbox Secret Key:" ./visionstack_credentials.txt | awk '{print $4}')
+    export NETBOX_TOKEN=$(grep -m 1 "Netbox API Token:" ./visionstack_credentials.txt | awk '{print $4}')
+    export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
+else
+    # Auto-generate password if not provided
+    if [ -z "$MASTER_PWD" ]; then
+        MASTER_PWD=$(openssl rand -hex 12)
+        echo "Auto-generated Master Password."
+    fi
 
-# 5. Generate Application Secrets early
-export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
-export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
-export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
+    # 5. Generate Application Secrets early
+    export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
+    export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
+    export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
+    export NETBOX_TOKEN=$(openssl rand -hex 20)
 
-# Save credentials for the admin to reference later
-cat <<EOF > ./visionstack_credentials.txt
+    # Save credentials for the admin to reference later
+    cat <<EOF > ./visionstack_credentials.txt
 ========================================
  visionStack Auto-Generated Credentials
 ========================================
-Deployment Date: $(date)
+Deployment Date: \$(date)
 Host IP (Detected): $HOST_IP
 
 CORE INFRASTRUCTURE:
@@ -158,11 +168,13 @@ INTERNAL DATABASE CREDENTIALS:
 
 SYSTEM SECRETS (Do not lose these!):
 ----------------------------------------
+Netbox API Token: $NETBOX_TOKEN
 Netbox Secret Key: $NETBOX_SECRET_KEY
 Graylog Secret: $GRAYLOG_PASSWORD_SECRET
 EOF
-chmod 600 ./visionstack_credentials.txt
-echo "Credentials saved to ./visionstack_credentials.txt (Keep this safe!)"
+    chmod 600 ./visionstack_credentials.txt
+    echo "Credentials saved to ./visionstack_credentials.txt (Keep this safe!)"
+fi
 
 # 6. Launch the Stack
 echo "Deploying containers..."
@@ -216,8 +228,6 @@ if [ -n "$ZBX_TOKEN" ]; then
 fi
 
 # --- Netbox Integration ---
-NETBOX_TOKEN=$(openssl rand -hex 20)
-
 echo -n "Running Netbox Database Migrations (This takes ~2-6.5 minutes) "
 # Start background migration
 docker exec -i visionstack-netbox /opt/netbox/netbox/manage.py migrate --no-input > /dev/null 2>&1 &
