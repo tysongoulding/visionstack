@@ -100,12 +100,14 @@ services:
   # --- Infrastructure Backend ---
   postgres:
     image: postgres:15-alpine
+    container_name: visionstack-postgres
     restart: always
     environment:
       - POSTGRES_PASSWORD=${MASTER_PWD}
 
   mongodb:
     image: mongo:7.0
+    container_name: visionstack-mongodb
     restart: always
 
   opensearch:
@@ -120,4 +122,5 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: visionstack-redis
     restart: always
