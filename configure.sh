@@ -485,8 +485,8 @@ run_task "Configuring Portainer" "init_portainer"
 run_task "Waiting for Zabbix API" "wait_for_zabbix"
 run_task "Configuring Zabbix" "init_zabbix"
 
-run_task "Running Netbox Database Migrations" "netbox_migrate"
-run_task "Waiting for Netbox Web UI" "wait_for_netbox"
+run_task "Running Netbox Database Migrations (~2-5 min)" "netbox_migrate"
+run_task "Waiting for Netbox Web UI (~5-8 min)" "wait_for_netbox"
 run_task "Configuring Netbox Settings" "netbox_config"
 run_task "Configuring Oxidized" "init_oxidized"
 
