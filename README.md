@@ -7,10 +7,10 @@
 
 ## 🚀 Quick Start
 
-Run the following one-liner to clone the repository, set permissions, and launch the interactive setup wizard.
+Run the following one-liner to download and execute the fully automated setup script.
 
 ```bash
-git clone https://github.com/tysongoulding/visionstack.git && cd visionstack && sudo chmod +x install.sh && sudo ./install.sh
+curl -sL https://raw.githubusercontent.com/tysongoulding/visionstack/main/install.sh | sudo bash
 ```
 ### 🗺️ Port Map & Ecosystem
 
