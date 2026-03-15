@@ -119,6 +119,20 @@ services:
     ports: [ "8080:8888" ]
     volumes: [ "./data/oxidized:/root/.config/oxidized" ]
 
+  # --- Security & AAA Tier ---
+  freeradius:
+    image: freeradius/freeradius-server:latest
+    container_name: visionstack-freeradius
+    restart: always
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    environment:
+      - JUMPCLOUD_SHARED_SECRET=${JUMPCLOUD_SHARED_SECRET}
+      - LOCAL_RADIUS_SECRET=${LOCAL_RADIUS_SECRET}
+    volumes:
+      - ./data/freeradius:/etc/raddb
+
   # --- Infrastructure Backend ---
   postgres-netbox:
     image: postgres:15-alpine

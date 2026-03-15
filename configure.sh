@@ -471,6 +471,71 @@ link_zabbix_netbox() {
     fi
 }
 
+# ------------------------------------------
+# FREERADIUS (JUMPCLOUD PROXY)
+# ------------------------------------------
+wait_for_freeradius() {
+    local TIMEOUT=0
+    # FreeRADIUS initializes almost instantly, but wait for the port to open
+    while ! docker exec visionstack-freeradius radtest testing password localhost 0 testing123 >/dev/null 2>&1; do
+        sleep 2
+        TIMEOUT=$((TIMEOUT + 1))
+        if [ $TIMEOUT -gt 15 ]; then exit 1; fi
+    done
+}
+
+init_freeradius() {
+    # 1. Inject Network Clients (Local network gear allowed to query this proxy)
+    docker exec visionstack-freeradius bash -c "cat << 'EOF' > /etc/raddb/clients.conf
+client localhost {
+    ipaddr = 127.0.0.1
+    secret = testing123
+}
+client private_10 {
+    ipaddr = 10.0.0.0/8
+    secret = $LOCAL_RADIUS_SECRET
+}
+client private_172 {
+    ipaddr = 172.16.0.0/12
+    secret = $LOCAL_RADIUS_SECRET
+}
+client private_192 {
+    ipaddr = 192.168.0.0/16
+    secret = $LOCAL_RADIUS_SECRET
+}
+EOF"
+
+    # 2. Inject Proxy Configuration (Forward all requests to JumpCloud)
+    docker exec visionstack-freeradius bash -c "cat << 'EOF' > /etc/raddb/proxy.conf
+proxy server {
+    default_fallback = no
+}
+home_server jumpcloud {
+    type = auth
+    ipaddr = radius.jumpcloud.com
+    port = 1812
+    secret = $JUMPCLOUD_SHARED_SECRET
+    response_window = 20
+    zombie_period = 40
+    revive_interval = 120
+    status_check = status-server
+    check_interval = 30
+    num_answers_to_alive = 3
+}
+home_server_pool jumpcloud_pool {
+    type = fail-over
+    home_server = jumpcloud
+}
+realm DEFAULT {
+    auth_pool = jumpcloud_pool
+    nostrip
+}
+EOF"
+
+    # Restart FreeRADIUS daemon to absorb the new confs
+    docker restart visionstack-freeradius > /dev/null
+}
+
 # ==========================================
 # EXECUTION
 # ==========================================
@@ -501,6 +566,9 @@ run_task "Configuring Grafana" "init_grafana"
 
 run_task "Waiting for Graylog API" "wait_for_graylog"
 run_task "Configuring Graylog" "init_graylog"
+
+run_task "Waiting for FreeRADIUS Daemon" "wait_for_freeradius"
+run_task "Configuring FreeRADIUS Proxy" "init_freeradius"
 
 run_task "Linking Zabbix <-> Netbox" "link_zabbix_netbox"
 

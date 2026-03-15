@@ -46,6 +46,16 @@ sudo docker rm -f $(sudo docker ps -aq) && sudo docker volume prune -f && sudo d
 | **ntopng** | `8070` | Real-time Traffic Flow Analysis | Container |
 | **Oxidized** | `8080` | Automated Network Config Backup | Container |
 
+### 🛡️ Security & AAA Authentication
+| Service | Port | Description | Environment |
+| :--- | :---: | :--- | :--- |
+| **FreeRADIUS** | `1812 / 1813` | Proxy for JumpCloud RaaS (RADIUS as a Service) | Container |
+
+VisionStack ships with a lightweight FreeRADIUS container configured explicitly as a **JumpCloud Authentication Proxy**.
+By default, the container will accept RADIUS authentication requests from any local network device (e.g. `Cisco 8000v, Fortigate`) using the auto-generated `Network Client Secret`, and it will securely forward those queries directly to `radius.jumpcloud.com` using the auto-generated `JumpCloud Server Secret`.
+
+> **Note:** To finalize this integration, you must log into your JumpCloud Administrator console and register the generated `JumpCloud Server Secret` as a valid RADIUS endpoint.
+
 ---
 
 ### 🛠️ Architecture & Integration

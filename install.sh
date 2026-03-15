@@ -120,6 +120,8 @@ if [ -f "./visionstack_credentials.txt" ]; then
     export VISION_WRITE_PWD=$(grep -m 1 "vision-write Pass:" ./visionstack_credentials.txt | awk '{print $3}')
     export VISION_READ_TOKEN=$(grep -m 1 "vision-read App Token:" ./visionstack_credentials.txt | awk '{print $4}')
     export VISION_WRITE_TOKEN=$(grep -m 1 "vision-write App Token:" ./visionstack_credentials.txt | awk '{print $4}')
+    export JUMPCLOUD_SHARED_SECRET=$(grep -m 1 "JumpCloud Server Secret:" ./visionstack_credentials.txt | awk '{print $4}')
+    export LOCAL_RADIUS_SECRET=$(grep -m 1 "Network Client Secret:" ./visionstack_credentials.txt | awk '{print $4}')
     export GRAYLOG_ROOT_PASSWORD_SHA2=$(echo -n "$MASTER_PWD" | sha256sum | awk '{print $1}')
 else
     if [ -z "$MASTER_PWD" ]; then
@@ -136,6 +138,8 @@ else
     export GRAYLOG_PASSWORD_SECRET=$(openssl rand -base64 32)
     export NETBOX_SECRET_KEY=$(openssl rand -base64 64)
     export NETBOX_TOKEN=$(openssl rand -hex 20)
+    export JUMPCLOUD_SHARED_SECRET=$(openssl rand -base64 24)
+    export LOCAL_RADIUS_SECRET=$(openssl rand -base64 24)
 
     cat <<EOF > ./visionstack_credentials.txt
 ========================================
@@ -219,6 +223,11 @@ SYSTEM SECRETS (Do not lose these!):
 Netbox API Token: $NETBOX_TOKEN
 Netbox Secret Key: $NETBOX_SECRET_KEY
 Graylog Secret: $GRAYLOG_PASSWORD_SECRET
+
+SECURITY & AAA (FreeRADIUS Proxy):
+----------------------------------------
+JumpCloud Server Secret: $JUMPCLOUD_SHARED_SECRET
+Network Client Secret: $LOCAL_RADIUS_SECRET
 EOF
     chmod 600 ./visionstack_credentials.txt
     log_succ "Secrets and Credentials compiled securely to ./visionstack_credentials.txt"
@@ -235,6 +244,8 @@ HOST_IP="$HOST_IP"
 GRAYLOG_ROOT_PASSWORD_SHA2="$GRAYLOG_ROOT_PASSWORD_SHA2"
 GRAYLOG_PASSWORD_SECRET="$GRAYLOG_PASSWORD_SECRET"
 NETBOX_SECRET_KEY="$NETBOX_SECRET_KEY"
+JUMPCLOUD_SHARED_SECRET="$JUMPCLOUD_SHARED_SECRET"
+LOCAL_RADIUS_SECRET="$LOCAL_RADIUS_SECRET"
 EOF
 chmod 600 .env
 
@@ -243,6 +254,8 @@ export HOST_IP=$HOST_IP
 export GRAYLOG_ROOT_PASSWORD_SHA2=$GRAYLOG_ROOT_PASSWORD_SHA2
 export GRAYLOG_PASSWORD_SECRET=$GRAYLOG_PASSWORD_SECRET
 export NETBOX_SECRET_KEY=$NETBOX_SECRET_KEY
+export JUMPCLOUD_SHARED_SECRET=$JUMPCLOUD_SHARED_SECRET
+export LOCAL_RADIUS_SECRET=$LOCAL_RADIUS_SECRET
 
 if docker compose version &> /dev/null; then
     docker compose up -d --pull always --force-recreate
