@@ -107,7 +107,7 @@ wait_for_grafana() {
     while ! curl -s -X GET "$GRAFANA_API/health" > /dev/null; do
         sleep 3
         TIMEOUT=$((TIMEOUT + 1))
-        if [ $TIMEOUT -gt 20 ]; then exit 1; fi
+        if [ $TIMEOUT -gt 40 ]; then exit 1; fi
     done
 }
 
@@ -116,7 +116,7 @@ wait_for_graylog() {
     while ! curl -s -X GET "$GRAYLOG_API/system/cluster/node" > /dev/null; do
         sleep 3
         TIMEOUT=$((TIMEOUT + 1))
-        if [ $TIMEOUT -gt 20 ]; then exit 1; fi
+        if [ $TIMEOUT -gt 60 ]; then exit 1; fi
     done
 }
 
@@ -480,7 +480,7 @@ wait_for_freeradius() {
     while ! docker exec visionstack-freeradius radtest testing password localhost 0 testing123 >/dev/null 2>&1; do
         sleep 2
         TIMEOUT=$((TIMEOUT + 1))
-        if [ $TIMEOUT -gt 15 ]; then exit 1; fi
+        if [ $TIMEOUT -gt 30 ]; then exit 1; fi
     done
 }
 
