@@ -588,6 +588,10 @@ echo -e "${C_MAGENTA}-----------------------------------------------------------
 echo -e "${C_YELLOW}  Universal Service Accounts Active:${C_DEFAULT}"
 echo -e "  vision-read  | $VISION_READ_PWD"
 echo -e "  vision-write | $VISION_WRITE_PWD"
+echo -e "${C_MAGENTA}----------------------------------------------------------------${C_DEFAULT}"
+echo -e "${C_YELLOW}  Security & AAA Proxies Active:${C_DEFAULT}"
+echo -e "  FreeRADIUS (Network Apps) | UDP 1812:1813 | Secret: $LOCAL_RADIUS_SECRET"
+echo -e "  Stunnel LDAP (Web Apps)   | TCP 389"
 echo -e "${C_MAGENTA}================================================================${C_DEFAULT}\n"
 
 echo ""
