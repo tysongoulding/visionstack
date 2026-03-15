@@ -5,7 +5,7 @@ import crypt
 import sys
 
 PORT = 8100
-CREDENTIALS_FILE = "/app/visionstack_credentials.txt"
+CREDENTIALS_FILE = "/credentials.txt"
 SHADOW_FILE = "/host/shadow" # Mounted securely as Read-Only
 
 class AuthHandler(http.server.SimpleHTTPRequestHandler):

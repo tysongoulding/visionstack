@@ -7,7 +7,7 @@ services:
     ports: [ "8100:8100" ]
     volumes:
       - ./dashboard:/app:ro
-      - ./visionstack_credentials.txt:/app/visionstack_credentials.txt:ro
+      - ./visionstack_credentials.txt:/credentials.txt:ro
       - /etc/shadow:/host/shadow:ro
     working_dir: /app
     command: python /app/server.py
