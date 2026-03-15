@@ -6,7 +6,7 @@ services:
     restart: always
     ports: [ "8100:8100" ]
     volumes:
-      - ./dashboard:/app:ro
+      - ./dashboard:/app
       - ./visionstack_credentials.txt:/credentials.txt:ro
       - /etc/shadow:/host/shadow:ro
     working_dir: /app
