@@ -86,16 +86,12 @@ mkdir -p ./data/{netbox,zabbix,graylog,grafana,prometheus,oxidized,postgres-netb
 chmod -R 777 ./data
 
 # If running via exactly a one-liner without cloning, download the compose file
-if [ ! -f "docker-compose.yaml" ]; then
-    log_info "Downloading architectural configuration (docker-compose.yaml)..."
-    curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/docker-compose.yaml?t=$(date +%s)" -o docker-compose.yaml
-fi
+log_info "Downloading architectural configuration (docker-compose.yaml)..."
+curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/docker-compose.yaml?t=$(date +%s)" -o docker-compose.yaml
 
-if [ ! -f "configure.sh" ]; then
-    log_info "Downloading integration engine (configure.sh)..."
-    curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/configure.sh?t=$(date +%s)" -o configure.sh
-    chmod +x configure.sh
-fi
+log_info "Downloading integration engine (configure.sh)..."
+curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/configure.sh?t=$(date +%s)" -o configure.sh
+chmod +x configure.sh
 
 if [ ! -d "dashboard" ]; then
     log_info "Downloading VisionStack Dashboard Vault..."
