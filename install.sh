@@ -97,6 +97,13 @@ if [ ! -f "configure.sh" ]; then
     chmod +x configure.sh
 fi
 
+if [ ! -d "dashboard" ]; then
+    log_info "Downloading VisionStack Dashboard Vault..."
+    mkdir -p dashboard
+    curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/dashboard/index.html?t=$(date +%s)" -o dashboard/index.html
+    curl -sL "https://raw.githubusercontent.com/tysongoulding/visionstack/main/dashboard/server.py?t=$(date +%s)" -o dashboard/server.py
+fi
+
 log_succ "Host System Prep Complete."
 
 # 4. Setup Wizard
