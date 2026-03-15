@@ -32,13 +32,13 @@ services:
       - POSTGRES_PASSWORD=${MASTER_PWD}
       - POSTGRES_DB=zabbix
       - ZBX_STARTCONNECTORS=1
-      - ZBX_STARTPOLLERS=100
-      - ZBX_STARTPREPROCESSORS=25
-      - ZBX_STARTTRAPPERS=20
-      - ZBX_STARTDISCOVERERS=10
-      - ZBX_STARTPINGERS=50
-      - ZBX_CACHESIZE=512M
-      - ZBX_HISTORYCACHESIZE=128M
+      - ZBX_STARTPOLLERS=50
+      - ZBX_STARTPREPROCESSORS=15
+      - ZBX_STARTTRAPPERS=10
+      - ZBX_STARTDISCOVERERS=5
+      - ZBX_STARTPINGERS=25
+      - ZBX_CACHESIZE=256M
+      - ZBX_HISTORYCACHESIZE=64M
     depends_on: [ postgres-zabbix ]
 
   zabbix-web:
@@ -83,7 +83,7 @@ services:
       - "514:1514/udp"
       - "514:1514/tcp"
     environment:
-      - GRAYLOG_SERVER_JAVA_OPTS="-Xms2g -Xmx2g"
+      - GRAYLOG_SERVER_JAVA_OPTS="-Xms1g -Xmx1g"
       - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
       - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
       - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
@@ -128,7 +128,7 @@ services:
       - POSTGRES_DB=netbox
       - POSTGRES_USER=netbox
       - POSTGRES_PASSWORD=${MASTER_PWD}
-    command: postgres -c max_connections=500 -c shared_buffers=1GB
+    command: postgres -c max_connections=250 -c shared_buffers=512MB
     volumes:
       - ./data/postgres-netbox:/var/lib/postgresql/data
 
@@ -140,7 +140,7 @@ services:
       - POSTGRES_DB=zabbix
       - POSTGRES_USER=zabbix
       - POSTGRES_PASSWORD=${MASTER_PWD}
-    command: postgres -c max_connections=500 -c shared_buffers=1GB
+    command: postgres -c max_connections=250 -c shared_buffers=512MB
     volumes:
       - ./data/postgres-zabbix:/var/lib/postgresql/data
 
@@ -157,7 +157,7 @@ services:
     restart: always
     environment:
       - discovery.type=single-node
-      - "OPENSEARCH_JAVA_OPTS=-Xms4g -Xmx4g"
+      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"
       - DISABLE_INSTALL_DEMO_CONFIG=true
       - DISABLE_SECURITY_PLUGIN=true
     volumes:
