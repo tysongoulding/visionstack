@@ -228,6 +228,12 @@ SECURITY & AAA (FreeRADIUS Proxy):
 ----------------------------------------
 JumpCloud Server Secret: $JUMPCLOUD_SHARED_SECRET
 Network Client Secret: $LOCAL_RADIUS_SECRET
+
+SECURITY & AAA (Local LDAP Proxy):
+----------------------------------------
+Internal Host: visionstack-ldap-proxy
+Internal Port: 389
+Base DN (JumpCloud): ou=Users,o=YOUR_ORG_ID,dc=jumpcloud,dc=com
 EOF
     chmod 600 ./visionstack_credentials.txt
     log_succ "Secrets and Credentials compiled securely to ./visionstack_credentials.txt"

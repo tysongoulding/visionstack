@@ -133,6 +133,21 @@ services:
     volumes:
       - ./data/freeradius:/etc/raddb
 
+  ldap-proxy:
+    image: alpine:latest
+    container_name: visionstack-ldap-proxy
+    restart: always
+    command: >
+      /bin/sh -c "
+      apk add --no-cache stunnel &&
+      echo 'foreground = yes' > /etc/stunnel/stunnel.conf &&
+      echo '[ldaps]' >> /etc/stunnel/stunnel.conf &&
+      echo 'accept = 0.0.0.0:389' >> /etc/stunnel/stunnel.conf &&
+      echo 'connect = ldap.jumpcloud.com:636' >> /etc/stunnel/stunnel.conf &&
+      echo 'client = yes' >> /etc/stunnel/stunnel.conf &&
+      stunnel /etc/stunnel/stunnel.conf
+      "
+
   # --- Infrastructure Backend ---
   postgres-netbox:
     image: postgres:15-alpine

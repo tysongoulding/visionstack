@@ -50,11 +50,13 @@ sudo docker rm -f $(sudo docker ps -aq) && sudo docker volume prune -f && sudo d
 | Service | Port | Description | Environment |
 | :--- | :---: | :--- | :--- |
 | **FreeRADIUS** | `1812 / 1813` | Proxy for JumpCloud RaaS (RADIUS as a Service) | Container |
+| **LDAP Proxy** | `Internal 389`| Stunnel bridge to JumpCloud LDAPS (`tcp/636`) | Container |
 
-VisionStack ships with a lightweight FreeRADIUS container configured explicitly as a **JumpCloud Authentication Proxy**.
-By default, the container will accept RADIUS authentication requests from any local network device (e.g. `Cisco 8000v, Fortigate`) using the auto-generated `Network Client Secret`, and it will securely forward those queries directly to `radius.jumpcloud.com` using the auto-generated `JumpCloud Server Secret`.
+VisionStack ships with lightweight Authentication Proxies to cleanly bridge your local isolated network to the cloud.
 
-> **Note:** To finalize this integration, you must log into your JumpCloud Administrator console and register the generated `JumpCloud Server Secret` as a valid RADIUS endpoint.
+*   **Network Hardware Authentication**: The FreeRADIUS container accepts local network RADIUS requests (e.g., `Cisco 8000v, Fortigate`) using the auto-generated `Network Client Secret`, and securely forwards them to `radius.jumpcloud.com` using the auto-generated `JumpCloud Server Secret`.
+    > **Note:** To finalize RADIUS, register the `JumpCloud Server Secret` in your JumpCloud console.
+*   **Web Application Authentication**: Web apps like Zabbix and Graylog are prevented from touching the public internet. Instead, they point internally to `ldap://visionstack-ldap-proxy:389`. The proxy intercepts the unencrypted traffic, wraps it in TLS encryption, and forwards it to JumpCloud's secure LDAPS endpoint.
 
 ---
 
