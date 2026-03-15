@@ -597,5 +597,5 @@ echo -e "${C_MAGENTA}===========================================================
 echo ""
 echo ""
 log_succ "visionstack Configuration Complete!"
-echo -e "         ${C_GREEN}All APIs are fully autonomous and integrated.${C_DEFAULT}"
+echo -e "${C_GREEN}All APIs are fully autonomous and integrated.${C_DEFAULT}"
 echo ""

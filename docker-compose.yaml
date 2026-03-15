@@ -1,4 +1,17 @@
 services:
+  # --- Frontend Dashboard ---
+  dashboard:
+    image: python:3.11-slim
+    container_name: visionstack-dashboard
+    restart: always
+    ports: [ "8100:8100" ]
+    volumes:
+      - ./dashboard:/app:ro
+      - ./visionstack_credentials.txt:/app/visionstack_credentials.txt:ro
+      - /etc/shadow:/host/shadow:ro
+    working_dir: /app
+    command: python /app/server.py
+
   # --- Management ---
   portainer:
     image: portainer/portainer-ce:latest
